@@ -6,6 +6,9 @@
     "icon": [
       "icons/icon.icns"
     ],
-    "shortDescription": "Font library and activation manager for macOS"
+    "shortDescription": "Font library and activation manager for macOS",
+    "macOS": {
+      "signingIdentity": "-"
+    }
   }
 }

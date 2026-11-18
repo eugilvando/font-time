@@ -15,7 +15,7 @@ jobs:
         include:
           - os: ubuntu-24.04
             format: deb
-          - os: macos-15
+          - os: macos-15-intel
             format: dmg
     runs-on: ${{ matrix.os }}
     timeout-minutes: 80
@@ -43,9 +43,16 @@ jobs:
             rustup target add aarch64-apple-darwin x86_64-apple-darwin
             npm run tauri -- build --ci --bundles dmg --target universal-apple-darwin
             bundle=src-tauri/target/universal-apple-darwin/release/bundle
-            lipo -verify_arch x86_64 arm64 "$bundle/macos/Font Time.app/Contents/MacOS/font-time"
             disks=("$bundle"/dmg/*.dmg)
             hdiutil verify "${disks[0]}"
+            mount="$RUNNER_TEMP/font-time-dmg"
+            mkdir "$mount"
+            hdiutil attach -readonly -nobrowse -mountpoint "$mount" "${disks[0]}"
+            trap 'hdiutil detach "$mount"' EXIT
+            app="$mount/Font Time.app/Contents"
+            binary=$(/usr/libexec/PlistBuddy -c "Print CFBundleExecutable" "$app/Info.plist")
+            lipo -verify_arch x86_64 arm64 "$app/MacOS/$binary"
+            codesign --verify --deep --strict "$mount/Font Time.app"
             cp "${disks[0]}" "deliver/font-time_${version}_macos-universal.dmg"
           else
             npm run tauri -- build --ci --bundles deb
