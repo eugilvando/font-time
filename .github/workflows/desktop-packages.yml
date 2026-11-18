@@ -51,7 +51,7 @@ jobs:
             trap 'hdiutil detach "$mount"' EXIT
             app="$mount/Font Time.app/Contents"
             binary=$(/usr/libexec/PlistBuddy -c "Print CFBundleExecutable" "$app/Info.plist")
-            lipo -verify_arch x86_64 arm64 "$app/MacOS/$binary"
+            lipo "$app/MacOS/$binary" -verify_arch x86_64 arm64
             codesign --verify --deep --strict "$mount/Font Time.app"
             cp "${disks[0]}" "deliver/font-time_${version}_macos-universal.dmg"
           else
