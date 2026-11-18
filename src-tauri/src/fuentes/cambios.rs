@@ -156,8 +156,7 @@ fn familias_de(cache: &Cache, e: &Entrada) -> Vec<String> {
     cache.caras(&e.ruta).map(|c| c.into_iter().map(|c| c.familia).collect()).unwrap_or_default()
 }
 
-/// Activa o desactiva las familias pedidas. `apagadas_carpeta`: fuentes de
-/// carpetas vigiladas que se han descargado en esta sesión.
+/// Activa o desactiva las familias pedidas.
 pub fn alternar(
     ent: &Entorno,
     entradas: &[Entrada],
@@ -165,7 +164,6 @@ pub fn alternar(
     familias: &[String],
     activar: bool,
     desbloqueadas: bool,
-    apagadas_carpeta: &mut HashSet<String>,
 ) -> Resultado {
     let quiero: HashSet<String> = familias.iter().map(|f| f.to_lowercase()).collect();
     let mut r = Resultado::default();
@@ -177,7 +175,15 @@ pub fn alternar(
             continue;
         }
         let nombre = fams.first().cloned().unwrap_or_else(|| nombre_archivo(&e.ruta));
+        if fams.iter().any(|n| cache.familias.iter().any(|f| f.externa && &f.nombre == n)) {
+            r.bloqueadas += 1;
+            continue;
+        }
         let hecho = match e.origen {
+            Origen::Biblioteca if e.ruta.parent() == Some(ent.activas().as_path()) => {
+                e.valor.as_ref().ok_or_else(|| "Missing font registration".to_string())
+                    .and_then(|(v, _)| super::activacion::desactivar(ent, v, &e.ruta))
+            }
             Origen::Usuario | Origen::Biblioteca if e.ruta.starts_with(&ent.fuentes_sistema) || respaldo_de(ent, e) => {
                 // "Para todos" instalada por la app: vive en Windows\Fonts y va como las del sistema.
                 if let Some(op) = op_sistema(ent, e, activar) {
@@ -192,16 +198,7 @@ pub fn alternar(
                     desactivar_usuario(ent, e)
                 }
             }
-            Origen::Carpeta => {
-                // La carga y descarga en la sesión la hace quien refresca (ver lib.rs).
-                let k = clave_ruta(&e.ruta);
-                if activar {
-                    apagadas_carpeta.remove(&k);
-                } else {
-                    apagadas_carpeta.insert(k);
-                }
-                Ok(())
-            }
+            Origen::Carpeta => super::activacion::activar(ent, &e.ruta, &cache.caras(&e.ruta).unwrap_or_default()),
             Origen::Sistema => {
                 if !desbloqueadas || fams.iter().any(|f| es_imprescindible(f)) {
                     r.bloqueadas += 1;

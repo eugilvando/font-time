@@ -6,7 +6,7 @@
   import { encajar } from "../lib/encajar.js";
 
   let { f, estilo, sel, fav, bloqueada, motivo, onsel, onabrir, onalternar, onfav, onarrastre } = $props();
-  const on = $derived(f.activa || bloqueada);
+  const on = $derived(f.activa);
   const aa = $derived(f.categoria === "otros" ? "あ" : "Aa");
 </script>
 

@@ -6,6 +6,7 @@ import { t } from "./i18n.svelte.js";
 
 export const fuentes = $state({
   lista: [],
+  directorios: [],
   // true hasta tener algo que enseñar (primera vez sin caché).
   cargando: true,
   // Tarda más de 150 ms: ahora sí, esqueleto.
@@ -68,7 +69,7 @@ function poner(lista) {
 
 const avisadas = new Set();
 function avisarErrores(lista) {
-  const nuevas = lista.filter((f) => f.error && !avisadas.has(f.archivo));
+  const nuevas = lista.filter((f) => f.error && f.error !== "cloud-only" && !avisadas.has(f.archivo));
   nuevas.forEach((f) => avisadas.add(f.archivo));
   if (nuevas.length === 1) avisar("err", t("err.leer", { n: nuevas[0].nombre }), nuevas[0].error);
   else if (nuevas.length > 1) avisar("err", t("err.leerVarias", { n: nuevas.length }), t("err.leerTexto"));
@@ -92,6 +93,7 @@ export async function iniciarFuentes() {
 export async function actualizarFuentes() {
   try {
     const r = await llamar("fuentes_actualizar");
+    fuentes.directorios = r.directorios ?? [];
     poner(r.familias);
     avisarErrores(r.familias);
   } catch (e) {
@@ -128,10 +130,10 @@ export async function alternar(nombres, activar, desbloqueadas) {
   }
 }
 
-export async function instalar(rutas, paraTodos) {
+export async function agregarArchivos(rutas) {
   fuentes.ocupado = true;
   try {
-    const r = await llamar("instalar", { rutas, paraTodos });
+    const r = await llamar("agregar_archivos", { rutas });
     poner(r.familias);
     return resumen(r);
   } catch (e) {

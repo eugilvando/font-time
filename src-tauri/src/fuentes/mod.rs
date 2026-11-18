@@ -1,6 +1,7 @@
 //! Inventario de fuentes: qué hay instalado (sistema y usuario), qué ha
 //! desactivado tuna-fonts y qué hay en las carpetas vigiladas, agrupado por familia.
 
+pub mod activacion;
 pub mod cache;
 pub mod cambios;
 pub mod categoria;
@@ -78,6 +79,12 @@ impl Entorno {
     }
     pub fn desactivadas(&self) -> PathBuf {
         self.datos.join("desactivadas")
+    }
+    pub fn activas(&self) -> PathBuf {
+        self.datos.join("activas")
+    }
+    pub fn biblioteca(&self) -> PathBuf {
+        self.datos.join("biblioteca")
     }
     pub fn respaldo(&self) -> PathBuf {
         self.datos.join("respaldo-sistema")
@@ -213,6 +220,10 @@ fn resolver(datos: &str, carpeta: &Path) -> PathBuf {
 /// Todos los archivos, sin leerlos: registro, carpetas de fuentes, lo que
 /// guarda la app y las carpetas vigiladas.
 pub fn entradas(ent: &Entorno, vigiladas: &[PathBuf]) -> Vec<Entrada> {
+    entradas_con_directorios(ent, vigiladas, &mut Vec::new())
+}
+
+pub fn entradas_con_directorios(ent: &Entorno, vigiladas: &[PathBuf], directorios: &mut Vec<PathBuf>) -> Vec<Entrada> {
     let mut fuera: Vec<Entrada> = Vec::new();
     let mut vistas: HashSet<String> = HashSet::new();
     let app = de_la_app(ent);
@@ -245,12 +256,12 @@ pub fn entradas(ent: &Entorno, vigiladas: &[PathBuf]) -> Vec<Entrada> {
     for (nombre, datos) in registro::leer(registro::hkcu(), &ent.clave_usuario) {
         let ruta = resolver(&datos, &ent.fuentes_usuario);
         if es_fuente(&ruta) && ruta.is_file() {
-            let origen = if app.contains(&clave_ruta(&ruta)) { Origen::Biblioteca } else { Origen::Usuario };
+            let origen = if app.contains(&clave_ruta(&ruta)) || ruta.parent() == Some(ent.activas().as_path()) { Origen::Biblioteca } else { Origen::Usuario };
             meter(Entrada { ruta, origen, activa: true, valor: Some((nombre, datos)) }, &mut fuera);
         }
     }
     for ruta in listar(&ent.fuentes_usuario, false) {
-        let origen = if app.contains(&clave_ruta(&ruta)) { Origen::Biblioteca } else { Origen::Usuario };
+        let origen = if app.contains(&clave_ruta(&ruta)) || ruta.parent() == Some(ent.activas().as_path()) { Origen::Biblioteca } else { Origen::Usuario };
         meter(Entrada { ruta, origen, activa: false, valor: None }, &mut fuera);
     }
 
@@ -261,15 +272,19 @@ pub fn entradas(ent: &Entorno, vigiladas: &[PathBuf]) -> Vec<Entrada> {
         }
     }
 
-    for c in vigiladas {
-        for ruta in listar(c, true) {
-            meter(Entrada { ruta, origen: Origen::Carpeta, activa: true, valor: None }, &mut fuera);
+    for c in vigiladas.iter().chain(std::iter::once(&ent.biblioteca())) {
+        for ruta in listar_con_directorios(c, true, directorios) {
+            meter(Entrada { ruta, origen: Origen::Carpeta, activa: false, valor: None }, &mut fuera);
         }
     }
     fuera
 }
 
 pub fn listar(carpeta: &Path, recursivo: bool) -> Vec<PathBuf> {
+    listar_con_directorios(carpeta, recursivo, &mut Vec::new())
+}
+
+fn listar_con_directorios(carpeta: &Path, recursivo: bool, directorios: &mut Vec<PathBuf>) -> Vec<PathBuf> {
     let mut fuera = Vec::new();
     let mut pendientes = vec![carpeta.to_path_buf()];
     while let Some(d) = pendientes.pop() {
@@ -277,7 +292,10 @@ pub fn listar(carpeta: &Path, recursivo: bool) -> Vec<PathBuf> {
         for e in it.flatten() {
             let p = e.path();
             match e.file_type() {
-                Ok(t) if t.is_dir() && recursivo => pendientes.push(p),
+                Ok(t) if t.is_dir() && recursivo => {
+                    directorios.push(p.clone());
+                    pendientes.push(p);
+                }
                 Ok(t) if t.is_file() && es_fuente(&p) => fuera.push(p),
                 _ => {}
             }
@@ -306,6 +324,8 @@ pub struct Familia {
     pub origen: Origen,
     pub activa: bool,
     pub imprescindible: bool,
+    #[serde(default)]
+    pub externa: bool,
     pub estilos: Vec<Estilo>,
     /// La cara normal (o la primera): con ella se pinta la vista previa.
     pub archivo: String,
@@ -332,6 +352,7 @@ pub fn agrupar(entradas: &[Entrada], caras: &dyn Fn(&Path) -> Result<Vec<Cara>, 
                         origen: e.origen,
                         activa: e.activa,
                         imprescindible: false,
+                        externa: false,
                         estilos: vec![],
                         archivo: archivo.clone(),
                         archivos: vec![archivo],
@@ -347,6 +368,7 @@ pub fn agrupar(entradas: &[Entrada], caras: &dyn Fn(&Path) -> Result<Vec<Cara>, 
                         origen: e.origen,
                         activa: false,
                         imprescindible: es_imprescindible(&c.familia),
+                        externa: false,
                         estilos: vec![],
                         archivo: archivo.clone(),
                         archivos: vec![],

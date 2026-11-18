@@ -1,4 +1,5 @@
 <script>
+  import { SvelteSet } from "svelte/reactivity";
   import Marca from "./Marca.svelte";
   import { SlidersHorizontal, Sun, Moon, Plus } from "@lucide/svelte";
   import Segmentado from "./Segmentado.svelte";
@@ -15,6 +16,13 @@
 
   const CATEGORIAS = ["sans", "serif", "script", "display", "mono", "otros"];
   const categoriasVisibles = $derived(CATEGORIAS.filter((c) => (catCuentas[c] ?? 0) > 0 || cat === c));
+
+  const plegados = new SvelteSet();
+  const excepciones = new SvelteSet();
+  function alternar(conjunto, id) {
+    if (conjunto.has(id)) conjunto.delete(id);
+    else conjunto.add(id);
+  }
 
   let borrador = $state("");
   let campo = $state();
@@ -62,19 +70,36 @@
     data-coleccion={extra.coleccion}
     aria-current={activo ? "page" : undefined}
   >
-    <span class="punto" class:rojo={extra.rojo}></span>
+    <span class="punto" class:oculto={extra.oculto} class:verde={extra.verde} class:parcial={extra.parcial}></span>
     <span class="texto">{texto}</span>
     {#if cuenta != null && cuenta !== ""}<span class="cuenta num">{cuenta}</span>{/if}
   </button>
 {/snippet}
 
-{#snippet cabecera(texto, titulo, alPulsar)}
-  <div class="titulo con-mas">
-    <span>{texto}</span>
-    <button type="button" class="mas" onclick={alPulsar} title={titulo} aria-label={titulo}>
-      <Plus size={13} strokeWidth={2} />
-    </button>
+{#snippet cabecera(id, texto)}
+  <button class="titulo cabecera" type="button" aria-expanded={!plegados.has(id)} onclick={() => alternar(plegados, id)}>
+    <span class="flecha" class:abierta={!plegados.has(id)}></span>{texto}
+  </button>
+{/snippet}
+
+{#snippet rama(c, raiz, nivel)}
+  {@const id = raiz + "|" + c.ruta}
+  {@const abierta = nivel === 0 ? !excepciones.has(id) : excepciones.has(id)}
+  {@const estado = c.activas === 0 ? t("sec.inactivas") : c.activas === c.cuenta ? t("nav.active") : t("nav.partial")}
+  <div class="rama" style:padding-left={Math.min(nivel, 6) * 9 + "px"}>
+    {#if c.hijos.length}
+      <button class="desplegar" type="button" aria-label={c.ruta} aria-expanded={abierta} onclick={() => alternar(excepciones, id)}>
+        <span class="flecha" class:abierta></span>
+      </button>
+    {:else}
+      <span class="hueco"></span>
+    {/if}
+    {@render item(c.nombre, seccion === "car:" + c.ruta, () => onseccion("car:" + c.ruta), c.cuenta,
+      { titulo: c.ruta + " · " + estado, verde: c.activas > 0 && c.activas === c.cuenta, parcial: c.activas > 0 && c.activas < c.cuenta })}
   </div>
+  {#if abierta}
+    {#each c.hijos as hijo (hijo.ruta)}{@render rama(hijo, raiz, nivel + 1)}{/each}
+  {/if}
 {/snippet}
 
 <aside>
@@ -84,17 +109,16 @@
 
   <nav>
     <div class="grupo">
-      <span class="titulo">{t("grupo.biblioteca")}</span>
-      {@render item(t("sec.instaladas"), seccion === "instaladas", () => onseccion("instaladas"), cuentas.instaladas)}
-      {@render item(t("sec.descubrir"), seccion === "descubrir", () => onseccion("descubrir"), cuentas.descubrir)}
-      <!-- Sin favoritas no sale (salvo si estás dentro): aparece con el primer corazón. -->
-      {#if cuentas.favoritas || seccion === "favoritas"}
-        {@render item(t("sec.favoritas"), seccion === "favoritas", () => onseccion("favoritas"), cuentas.favoritas, { rojo: true })}
-      {/if}
+      {@render item(t("nav.all"), seccion === "instaladas" && !cat, () => onseccion("instaladas"), cuentas.instaladas, { oculto: true })}
+      {@render item(t("sec.recientes"), seccion === "recientes", () => onseccion("recientes"), cuentas.recientes, { oculto: true })}
+      {@render item(t("nav.favorites"), seccion === "favoritas", () => onseccion("favoritas"), cuentas.favoritas)}
+      {@render item(t("nav.active"), seccion === "activas", () => onseccion("activas"), cuentas.activas, { verde: true })}
+      {@render item(t("sec.inactivas"), seccion === "inactivas", () => onseccion("inactivas"), cuentas.inactivas)}
     </div>
 
     <div class="grupo">
-      {@render cabecera(t("grupo.colecciones"), t("col.nueva"), empezarNueva)}
+      {@render cabecera("colecciones", t("grupo.colecciones"))}
+      {#if !plegados.has("colecciones")}
       {#each colecciones as c (c.id)}
         {#if renombrando === c.id}
           <input
@@ -130,27 +154,39 @@
           onblur={() => acabarNueva(false)}
         />
       {/if}
+      {#if !creando}
+        <button class="nueva" type="button" onclick={empezarNueva}>{t("col.nueva")}</button>
+      {/if}
+      {/if}
     </div>
 
     <div class="grupo">
-      {@render cabecera(t("grupo.carpetas"), t("car.anadir"), onanadirCarpeta)}
-      {#each carpetas as c (c.ruta)}
-        {@render item(c.nombre, seccion === "car:" + c.ruta, () => onseccion("car:" + c.ruta), c.cuenta, { titulo: c.ruta })}
-      {/each}
+      {@render cabecera("proveedores", t("nav.providers"))}
+      {#if !plegados.has("proveedores")}
+        {@render item("Google Fonts", seccion === "descubrir", () => onseccion("descubrir"), cuentas.descubrir)}
+      {/if}
     </div>
 
-    <!-- Solo las categorías con alguna fuente (y la elegida, aunque se quede vacía, para poder quitarla). -->
     {#if categoriasVisibles.length}
       <div class="grupo">
-        <span class="titulo">{t("grupo.categorias")}</span>
-        {#each categoriasVisibles as c (c)}
-          {@render item(t("cat." + c), cat === c, () => oncat(cat === c ? null : c), catCuentas[c] ?? 0)}
-        {/each}
+        {@render cabecera("categorias", t("grupo.categorias"))}
+        {#if !plegados.has("categorias")}
+          {#each categoriasVisibles as c (c)}
+            {@render item(t("cat." + c), cat === c, () => oncat(cat === c ? null : c), catCuentas[c] ?? 0)}
+          {/each}
+        {/if}
       </div>
     {/if}
+    <div class="grupo">
+      {@render cabecera("carpetas", t("nav.folders"))}
+      {#if !plegados.has("carpetas")}
+        {#each carpetas as c (c.ruta)}{@render rama(c, c.ruta, 0)}{/each}
+      {/if}
+    </div>
   </nav>
 
   <div class="pie">
+    <button type="button" class="anadir" onclick={() => onanadirCarpeta()}><Plus size={14} />{t("nav.add")}</button>
     <Actualizacion />
     <span class="nota num">{pie}</span>
     <div class="fila">
@@ -192,7 +228,7 @@
     display: flex;
     align-items: center;
     gap: 9px;
-    height: 30px;
+    height: 26px;
     padding: 0 10px;
     border: 0;
     border-radius: 6px;
@@ -205,19 +241,21 @@
   .item:hover { background: var(--hov); }
   .item.activo { background: var(--chip); color: var(--ink); font-weight: 600; }
   .item.diana { box-shadow: inset 0 0 0 1.5px var(--red); }
-  .punto { width: 7px; height: 7px; flex: none; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--line2); }
-  .activo .punto { background: var(--ink); box-shadow: none; }
-  .activo .punto.rojo { background: var(--red); }
-  /* La cabecera mide lo mismo que el botón y el hueco de abajo va fuera
-     (margen, no relleno), así el fondo del «+» queda centrado con el texto. */
-  .con-mas { display: flex; align-items: center; justify-content: space-between; height: 20px; padding: 0 2px 0 10px; margin-bottom: 4px; }
-  .mas {
-    flex: none; width: 20px; height: 20px; padding: 0; display: grid; place-items: center;
-    border: 0; border-radius: 5px; background: transparent; color: var(--ink3);
-    transition: background-color 0.15s, color 0.15s;
-  }
-  .mas :global(svg) { display: block; }
-  .mas:hover { background: var(--hov); color: var(--ink); }
+  .punto { width: 10px; height: 10px; flex: none; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--line2); }
+  .punto.oculto { visibility: hidden; }
+  .punto.verde { background: var(--ok); box-shadow: none; }
+  .punto.parcial { box-shadow: inset 0 0 0 1.5px var(--ok); }
+  .cabecera, .desplegar, .anadir, .nueva { background: transparent; border: 0; color: var(--ink2); cursor: pointer; }
+  .cabecera { display: flex; align-items: center; gap: 8px; min-height: 23px; text-align: left; }
+  .flecha { width: 0; height: 0; border-top: 4px solid transparent; border-bottom: 4px solid transparent; border-left: 5px solid currentColor; }
+  .flecha.abierta { transform: rotate(90deg); }
+  .rama { display: flex; align-items: center; min-width: 0; }
+  .rama .item { flex: 1; min-width: 0; padding-left: 4px; }
+  .desplegar, .hueco { flex: 0 0 15px; }
+  .desplegar { display: grid; place-items: center; height: 24px; padding: 0; }
+  .anadir { display: flex; align-items: center; justify-content: center; gap: 5px; padding: 5px; font-weight: 600; }
+  .nueva { text-align: left; padding: 5px 12px; color: var(--ink3); }
+  .anadir:hover, .nueva:hover, .desplegar:hover, .cabecera:hover { background: var(--hov); }
   .texto { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 1px; }
   .cuenta { margin-left: auto; font-size: 11.5px; color: var(--ink3); }
   .renombrar {

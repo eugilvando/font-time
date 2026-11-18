@@ -33,10 +33,7 @@ pub struct Estado {
     cache: Mutex<Cache>,
     /// Carpetas vigiladas.
     carpetas: Mutex<Vec<PathBuf>>,
-    /// Fuentes de carpetas vigiladas cargadas ahora en la sesión.
-    cargadas: Mutex<HashSet<String>>,
-    /// Las que se han apagado a mano en esta sesión.
-    apagadas: Mutex<HashSet<String>>,
+    operaciones: Mutex<()>,
     vigilante: Mutex<Option<notify::RecommendedWatcher>>,
 }
 
@@ -47,57 +44,45 @@ impl Estado {
     fn archivo_carpetas(&self) -> PathBuf {
         self.ent.datos.join("carpetas.json")
     }
-    fn entradas(&self) -> Vec<fuentes::Entrada> {
+    fn entradas(&self, directorios: &mut Vec<PathBuf>) -> Vec<fuentes::Entrada> {
         let carpetas = self.carpetas.lock().unwrap().clone();
-        let apagadas = self.apagadas.lock().unwrap();
-        let mut v = fuentes::entradas(&self.ent, &carpetas);
-        for e in v.iter_mut().filter(|e| e.origen == Origen::Carpeta) {
-            e.activa = !apagadas.contains(&fuentes::clave_ruta(&e.ruta));
-        }
-        v
+        fuentes::entradas_con_directorios(&self.ent, &carpetas, directorios)
     }
-    /// Lee lo cambiado, guarda la caché y carga en la sesión las de carpetas vigiladas.
-    fn refrescar(&self) -> (Vec<Familia>, usize) {
-        let entradas = self.entradas();
-        let mut cache = self.cache.lock().unwrap();
-        let leidas = cache.actualizar(&entradas);
-        cache.guardar(&self.archivo_cache());
-        let familias = cache.familias.clone();
-        drop(cache);
-        self.sincronizar_carpetas(&entradas);
-        (familias, leidas)
-    }
-    fn sincronizar_carpetas(&self, entradas: &[fuentes::Entrada]) {
-        let mut cargadas = self.cargadas.lock().unwrap();
-        let quiero: HashSet<String> = entradas
-            .iter()
-            .filter(|e| e.origen == Origen::Carpeta && e.activa)
-            .map(|e| fuentes::clave_ruta(&e.ruta))
-            .collect();
-        let mut cambio = false;
-        for e in entradas.iter().filter(|e| e.origen == Origen::Carpeta) {
-            let k = fuentes::clave_ruta(&e.ruta);
-            if quiero.contains(&k) && !cargadas.contains(&k) && win::cargar(&e.ruta, false) {
-                cargadas.insert(k);
-                cambio = true;
+
+    fn actualizar_cache(&self, entradas: &[fuentes::Entrada], cache: &mut Cache) -> usize {
+        let leidas = cache.actualizar(entradas);
+        let mut catalogadas = HashSet::new();
+        let mut propias = HashSet::new();
+        let mut externas = HashSet::new();
+        let dir = self.ent.activas();
+        for e in entradas {
+            let grupo = if e.ruta.parent() == Some(dir.as_path()) { &mut propias }
+                else if e.origen == Origen::Carpeta { &mut catalogadas }
+                else if e.activa { &mut externas } else { continue };
+            if let Some(caras) = cache.caras(&e.ruta) {
+                grupo.extend(caras.into_iter().map(|c| c.familia.to_lowercase()));
             }
         }
-        for k in cargadas.iter().filter(|k| !quiero.contains(*k)).cloned().collect::<Vec<_>>() {
-            win::descargar(Path::new(&k), false);
-            cargadas.remove(&k);
-            cambio = true;
+        let visibles = if catalogadas.is_empty() { HashSet::new() } else { win::familias_visibles() };
+        for f in &mut cache.familias {
+            let nombre = f.nombre.to_lowercase();
+            if catalogadas.contains(&nombre) && (externas.contains(&nombre)
+                || (!propias.contains(&nombre) && f.estilos.iter().any(|e| visibles.contains(&e.familia_win.to_lowercase())))) {
+                f.activa = true;
+                f.externa = true;
+            }
         }
-        if cambio {
-            win::avisar_cambio();
-        }
+        leidas
     }
-    fn descargar_carpetas(&self) {
-        let mut cargadas = self.cargadas.lock().unwrap();
-        for k in cargadas.drain() {
-            win::descargar(Path::new(&k), false);
-        }
-        win::avisar_cambio();
+    fn refrescar(&self) -> (Vec<Familia>, usize, Vec<PathBuf>) {
+        let mut cache = self.cache.lock().unwrap();
+        let mut directorios = Vec::new();
+        let entradas = self.entradas(&mut directorios);
+        let leidas = self.actualizar_cache(&entradas, &mut cache);
+        cache.guardar(&self.archivo_cache());
+        (cache.familias.clone(), leidas, directorios)
     }
+
 }
 
 async fn fondo<T: Send + 'static>(f: impl FnOnce() -> Result<T, String> + Send + 'static) -> Result<T, String> {
@@ -120,8 +105,8 @@ fn fuentes_guardadas(estado: State<Estado>) -> Vec<Familia> {
 #[tauri::command]
 async fn fuentes_actualizar(app: AppHandle) -> Result<Value, String> {
     fondo(move || {
-        let (familias, leidas) = app.state::<Estado>().refrescar();
-        Ok(json!({ "familias": familias, "leidas": leidas }))
+        let (familias, leidas, directorios) = app.state::<Estado>().refrescar();
+        Ok(json!({ "familias": familias, "leidas": leidas, "directorios": directorios }))
     })
     .await
 }
@@ -130,78 +115,61 @@ async fn fuentes_actualizar(app: AppHandle) -> Result<Value, String> {
 async fn alternar(app: AppHandle, familias: Vec<String>, activar: bool, desbloqueadas: bool) -> Result<Salida, String> {
     fondo(move || {
         let estado = app.state::<Estado>();
-        let entradas = estado.entradas();
+        let _op = estado.operaciones.lock().unwrap();
+        let entradas = estado.entradas(&mut Vec::new());
         let resultado = {
             let mut cache = estado.cache.lock().unwrap();
-            cache.actualizar(&entradas);
-            let mut apagadas = estado.apagadas.lock().unwrap();
-            cambios::alternar(&estado.ent, &entradas, &cache, &familias, activar, desbloqueadas, &mut apagadas)
+            estado.actualizar_cache(&entradas, &mut cache);
+            cambios::alternar(&estado.ent, &entradas, &cache, &familias, activar, desbloqueadas)
         };
-        let (familias, _) = estado.refrescar();
+        let (familias, _, _) = estado.refrescar();
         Ok(Salida { familias, resultado })
     })
     .await
 }
 
-/// Instala archivos soltados en la ventana. `para_todos` pide permisos.
+/// Importa archivos sueltos al catálogo local; las carpetas vigiladas se leen en su sitio.
 #[tauri::command]
-async fn instalar(app: AppHandle, rutas: Vec<String>, para_todos: bool) -> Result<Salida, String> {
+async fn agregar_archivos(app: AppHandle, rutas: Vec<PathBuf>) -> Result<Salida, String> {
     fondo(move || {
         let estado = app.state::<Estado>();
-        let r = instalar_archivos(&estado, &rutas.iter().map(PathBuf::from).collect::<Vec<_>>(), para_todos);
-        let (familias, _) = estado.refrescar();
-        Ok(Salida { familias, resultado: r })
-    })
-    .await
+        let _op = estado.operaciones.lock().unwrap();
+        let resultado = catalogar(&estado.ent, &rutas);
+        let (familias, _, _) = estado.refrescar();
+        Ok(Salida { familias, resultado })
+    }).await
 }
 
-fn instalar_archivos(estado: &Estado, rutas: &[PathBuf], para_todos: bool) -> cambios::Resultado {
-    let mut r = cambios::Resultado::default();
-    let mut ops = Vec::new();
+fn catalogar(ent: &Entorno, rutas: &[PathBuf]) -> cambios::Resultado {
+    let mut resultado = cambios::Resultado::default();
     for ruta in rutas {
-        let nombre = ruta.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
-        if !fuentes::es_fuente(ruta) {
-            r.errores.push(format!("{nombre}: no es una fuente"));
-            continue;
-        }
-        let caras = match fuentes::leer::caras(ruta) {
-            Ok(c) => c,
-            Err(e) => {
-                r.errores.push(format!("{nombre}: {e}"));
-                continue;
+        let agregar = || -> Result<String, String> {
+            if !fuentes::es_fuente(ruta) { return Err("Unsupported font format".into()); }
+            let caras = fuentes::leer::caras(ruta)?;
+            let familia = caras.first().ok_or("No font faces")?.familia.clone();
+            let nombre = ruta.file_name().ok_or("Missing filename")?.to_string_lossy();
+            let dir = ent.biblioteca();
+            fs::create_dir_all(&dir).map_err(err)?;
+            let base = dir.join(nombre.as_ref());
+            if base.is_file() && fs::read(&base).map_err(err)? == fs::read(ruta).map_err(err)? {
+                return Ok(familia);
             }
+            let destino = cambios::libre(&dir, &nombre);
+            if let Err(e) = fs::copy(ruta, &destino) {
+                let _ = fs::remove_file(destino);
+                return Err(err(e));
+            }
+            Ok(familia)
         };
-        let familia = caras[0].familia.clone();
-        if para_todos {
-            let destino = cambios::libre(&estado.ent.fuentes_sistema, &nombre);
-            let cff = ruta.extension().is_some_and(|e| e.eq_ignore_ascii_case("otf"));
-            let valor = fuentes::registro::nombre_valor(&caras.iter().map(|c| c.completo.clone()).collect::<Vec<_>>(), cff);
-            let datos = destino.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
-            ops.push(fuentes::sistema::Op::Instalar { origen: ruta.clone(), ruta: destino, valor, datos });
-            r.instaladas.push(familia);
-        } else {
-            match cambios::instalar_usuario(&estado.ent, ruta, &caras) {
-                Ok(_) => {
-                    r.cambiadas += 1;
-                    if !r.instaladas.contains(&familia) {
-                        r.instaladas.push(familia);
-                    }
-                }
-                Err(e) => r.errores.push(format!("{nombre}: {e}")),
+        match agregar() {
+            Ok(f) => {
+                resultado.cambiadas += 1;
+                if !resultado.instaladas.contains(&f) { resultado.instaladas.push(f); }
             }
+            Err(e) => resultado.errores.push(format!("{}: {e}", ruta.display())),
         }
     }
-    if !ops.is_empty() {
-        let antes = r.cambiadas;
-        cambios::aplicar_sistema(&estado.ent, &ops, &mut r);
-        if r.cambiadas == antes {
-            r.instaladas.clear();
-        }
-    }
-    if r.cambiadas > 0 {
-        win::avisar_cambio();
-    }
-    r
+    resultado
 }
 
 /// Ajustes → «restaurar todas las del sistema».
@@ -218,7 +186,7 @@ async fn restaurar_sistema(app: AppHandle) -> Result<Salida, String> {
             cambios::aplicar_sistema(&estado.ent, &ops, &mut r);
             win::avisar_cambio();
         }
-        let (familias, _) = estado.refrescar();
+        let (familias, _, _) = estado.refrescar();
         Ok(Salida { familias, resultado: r })
     })
     .await
@@ -249,7 +217,8 @@ fn vigilar(app: &AppHandle) {
     let (tx, rx) = mpsc::channel::<()>();
     let w = notify::recommended_watcher(move |ev: notify::Result<notify::Event>| {
         if let Ok(ev) = ev {
-            if ev.paths.iter().any(|p| fuentes::es_fuente(p) || p.extension().is_none()) {
+            if matches!(ev.kind, notify::EventKind::Create(_) | notify::EventKind::Remove(_) | notify::EventKind::Modify(notify::event::ModifyKind::Name(_)))
+                || ev.paths.iter().any(|p| fuentes::es_fuente(p) || p.extension().is_none()) {
                 let _ = tx.send(());
             }
         }
@@ -295,7 +264,7 @@ fn carpetas(estado: State<Estado>) -> Vec<Carpeta> {
 }
 
 #[tauri::command]
-async fn anadir_carpeta(app: AppHandle) -> Result<Option<Vec<Carpeta>>, String> {
+async fn anadir_carpeta(app: AppHandle) -> Result<Option<Value>, String> {
     use tauri_plugin_dialog::DialogExt;
     let Some(elegida) = app.dialog().file().blocking_pick_folder() else { return Ok(None) };
     let ruta = elegida.into_path().map_err(err)?;
@@ -309,7 +278,7 @@ async fn anadir_carpeta(app: AppHandle) -> Result<Option<Vec<Carpeta>>, String> 
     let _ = app.asset_protocol_scope().allow_directory(&ruta, true);
     guardar_carpetas(&estado);
     vigilar(&app);
-    Ok(Some(lista_carpetas(&estado)))
+    Ok(Some(json!({ "ruta": ruta, "carpetas": lista_carpetas(&estado) })))
 }
 
 /// En segundo plano: si aún se están leyendo las fuentes de una carpeta grande,
@@ -361,9 +330,10 @@ async fn google_instalar(app: AppHandle, familia: String) -> Result<Salida, Stri
     let app2 = app.clone();
     let salida = fondo(move || {
         let estado = app2.state::<Estado>();
-        let r = instalar_archivos(&estado, &archivos, false);
+        let _op = estado.operaciones.lock().unwrap();
+        let r = catalogar(&estado.ent, &archivos);
         let _ = fs::remove_dir_all(&destino);
-        let (familias, _) = estado.refrescar();
+        let (familias, _, _) = estado.refrescar();
         Ok(Salida { familias, resultado: r })
     })
     .await?;
@@ -421,6 +391,10 @@ fn mostrar_en_explorador(ruta: String) -> Result<(), String> {
 // ---- arranque ----
 
 fn leer_ajustes(app: &AppHandle) -> Value {
+    use tauri_plugin_store::StoreExt;
+    if let Some(store) = app.get_store(AJUSTES) {
+        return Value::Object(store.entries().into_iter().collect());
+    }
     app.path()
         .app_data_dir()
         .ok()
@@ -486,9 +460,10 @@ pub fn run() {
         // salvo que en ajustes se haya elegido cerrar del todo.
         .on_window_event(|w, ev| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = ev {
-                if w.label() == "main" && leer_ajustes(w.app_handle())["alCerrar"].as_str() != Some("salir") {
+                if w.label() == "main" {
                     api.prevent_close();
-                    let _ = w.hide();
+                    if leer_ajustes(w.app_handle())["alCerrar"].as_str() == Some("salir") { w.app_handle().exit(0); }
+                    else { let _ = w.hide(); }
                 }
             }
         })
@@ -496,7 +471,7 @@ pub fn run() {
             fuentes_guardadas,
             fuentes_actualizar,
             alternar,
-            instalar,
+            agregar_archivos,
             restaurar_sistema,
             respaldadas,
             caracteres,
@@ -533,7 +508,7 @@ pub fn run() {
             // Vistas previas de las que no están instaladas ahora (desactivadas,
             // de carpetas, recién instaladas): se cargan desde su archivo.
             let alcance = app.asset_protocol_scope();
-            for d in [ent.desactivadas(), ent.respaldo(), ent.fuentes_usuario.clone(), ent.fuentes_sistema.clone()] {
+            for d in [ent.desactivadas(), ent.respaldo(), ent.activas(), ent.biblioteca(), ent.fuentes_usuario.clone(), ent.fuentes_sistema.clone()] {
                 let _ = alcance.allow_directory(d, true);
             }
             for c in &carpetas {
@@ -544,8 +519,7 @@ pub fn run() {
                 ent,
                 cache: Mutex::new(cache),
                 carpetas: Mutex::new(carpetas),
-                cargadas: Mutex::default(),
-                apagadas: Mutex::default(),
+                operaciones: Mutex::default(),
                 vigilante: Mutex::default(),
             });
             vigilar(&handle);
@@ -584,9 +558,12 @@ pub fn run() {
         .expect("error al arrancar Font Time");
 
     app.run(|app, ev| {
-        // Al cerrar: las de carpetas vigiladas solo estaban mientras la app estuviera abierta.
         if let RunEvent::Exit = ev {
-            app.state::<Estado>().descargar_carpetas();
+            let estado = app.state::<Estado>();
+            let _op = estado.operaciones.lock().unwrap();
+            if leer_ajustes(app)["desactivarAlSalir"].as_bool() == Some(true) {
+                if let Err(e) = fuentes::activacion::desactivar_propias(&estado.ent) { eprintln!("{e}"); }
+            }
         }
     });
 }

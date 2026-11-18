@@ -21,9 +21,10 @@ const POR_DEFECTO = {
   // true en cuanto se elige el idioma a mano en ajustes (desde la 0.2.1).
   idiomaElegido: false,
   // usuario | todos (pide permisos)
-  instalarPara: "usuario",
+  desactivarAlSalir: false,
   // instaladas | favoritas
   alAbrir: "instaladas",
+  carpetaPrincipal: "",
   // bandeja | salir: qué hace la X (en la bandeja, las carpetas vigiladas siguen disponibles)
   alCerrar: "bandeja",
   // Fuentes del sistema desbloqueadas (las imprescindibles, nunca).
@@ -36,7 +37,7 @@ const POR_DEFECTO = {
   textoPrueba: "",
   atajos: { ...ATAJOS },
   vista: "lista",
-  tamano: 30,
+  tamano: 42,
 };
 
 export const ajustes = $state({ ...POR_DEFECTO, ...inicio.ajustes });
@@ -57,7 +58,9 @@ export function ponerIdioma(idioma) {
 
 // Tema que se ve ahora mismo (resuelve el null con el de Windows).
 const oscuroSistema = matchMedia("(prefers-color-scheme: dark)");
-export const temaActual = () => ajustes.tema ?? (oscuroSistema.matches ? "dark" : "light");
+let temaSistema = $state(oscuroSistema.matches ? "dark" : "light");
+oscuroSistema.addEventListener("change", (e) => { temaSistema = e.matches ? "dark" : "light"; });
+export const temaActual = () => ajustes.tema ?? temaSistema;
 
 const store = enTauri ? new LazyStore("ajustes.json", { autoSave: 150 }) : null;
 
@@ -68,6 +71,8 @@ $effect.root(() => {
   let primera = true;
   $effect(() => {
     const tema = temaActual();
+    if (enTauri) import("@tauri-apps/api/window").then(({ getCurrentWindow }) =>
+      getCurrentWindow().setBackgroundColor(tema === "dark" ? [0x19, 0x18, 0x16, 255] : [0xf7, 0xf6, 0xf3, 255]));
     const html = document.documentElement;
     if (primera || html.dataset.theme === tema) {
       html.dataset.theme = tema;
@@ -89,9 +94,4 @@ $effect.root(() => {
 
 export function ponerTema(tema) {
   ajustes.tema = tema;
-  if (!enTauri) return;
-  // El fondo nativo de la ventana también, para que al redimensionar no asome el otro color.
-  import("@tauri-apps/api/window").then(({ getCurrentWindow }) =>
-    getCurrentWindow().setBackgroundColor(tema === "dark" ? [0x19, 0x18, 0x16, 255] : [0xf7, 0xf6, 0xf3, 255]),
-  );
 }

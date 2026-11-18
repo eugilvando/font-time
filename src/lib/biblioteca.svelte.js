@@ -4,6 +4,7 @@ import { enTauri } from "./ajustes.svelte.js";
 
 export const biblioteca = $state({
   favoritas: [],
+  recientes: [],
   // [{ id, nombre, fuentes: [familia] }]
   colecciones: [],
   listo: false,
@@ -13,6 +14,7 @@ const store = enTauri ? new LazyStore("biblioteca.json", { autoSave: 150 }) : nu
 
 export async function iniciarBiblioteca() {
   if (store) {
+    biblioteca.recientes = (await store.get("recientes")) ?? [];
     biblioteca.favoritas = (await store.get("favoritas")) ?? [];
     biblioteca.colecciones = (await store.get("colecciones")) ?? [];
   }
@@ -20,6 +22,10 @@ export async function iniciarBiblioteca() {
 }
 
 $effect.root(() => {
+  $effect(() => {
+    const r = $state.snapshot(biblioteca.recientes);
+    if (biblioteca.listo) store?.set("recientes", r);
+  });
   $effect(() => {
     const f = $state.snapshot(biblioteca.favoritas);
     if (biblioteca.listo) store?.set("favoritas", f);

@@ -5,7 +5,7 @@
 </script>
 
 {#if bloqueada}
-  <span class="circ candado" title={titulo} style:width="{tam}px" style:height="{tam}px" style:margin-bottom={abajo}>
+  <span class="circ candado" class:activa title={titulo} style:width="{tam}px" style:height="{tam}px" style:margin-bottom={abajo}>
     <svg width={tam * 0.5} height={tam * 0.56} viewBox="0 0 8 9" aria-hidden="true">
       <rect x="1" y="4" width="6" height="4.5" rx="1" fill="var(--win)" />
       <path d="M2.4 4V2.8a1.6 1.6 0 0 1 3.2 0V4" fill="none" stroke="var(--win)" stroke-width="1.1" />
@@ -50,6 +50,6 @@
     transition: background-color 0.15s, box-shadow 0.15s;
   }
   button.circ:hover { box-shadow: inset 0 0 0 1.5px var(--ink3); }
-  .circ.activa { background: var(--ink); box-shadow: none; }
-  .circ.candado { background: var(--line2); box-shadow: none; }
+  .circ.activa { background: var(--ok); box-shadow: none; }
+  .circ.candado:not(.activa) { background: var(--line2); box-shadow: none; }
 </style>

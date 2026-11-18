@@ -24,12 +24,18 @@ pub struct Cache {
     pub familias: Vec<Familia>,
 }
 
-const VERSION: u32 = 2;
+const VERSION: u32 = 3;
+pub const EN_NUBE: &str = "cloud-only";
+fn en_nube(m: &fs::Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    use windows_sys::Win32::Storage::FileSystem::{FILE_ATTRIBUTE_OFFLINE, FILE_ATTRIBUTE_RECALL_ON_OPEN, FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS};
+    m.file_attributes() & (FILE_ATTRIBUTE_OFFLINE | FILE_ATTRIBUTE_RECALL_ON_OPEN | FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS) != 0
+}
 
-fn sello(ruta: &Path) -> Option<(u64, u64)> {
+fn sello(ruta: &Path) -> Option<(u64, u64, bool)> {
     let m = fs::metadata(ruta).ok()?;
     let t = m.modified().ok()?.duration_since(UNIX_EPOCH).ok()?.as_secs();
-    Some((t, m.len()))
+    Some((t, m.len(), en_nube(&m)))
 }
 
 impl Cache {
@@ -50,20 +56,20 @@ impl Cache {
     /// Lee lo nuevo o cambiado, olvida lo que ya no está y rehace las familias.
     /// Devuelve cuántos archivos ha tenido que leer.
     pub fn actualizar(&mut self, entradas: &[Entrada]) -> usize {
-        let pendientes: Vec<(String, &Path, (u64, u64))> = entradas
+        let pendientes: Vec<(String, &Path, (u64, u64, bool))> = entradas
             .iter()
             .filter_map(|e| {
                 let s = sello(&e.ruta)?;
                 let k = clave_ruta(&e.ruta);
                 match self.archivos.get(&k) {
-                    Some(r) if (r.mtime, r.tam) == s => None,
+                    Some(r) if (r.mtime, r.tam, r.caras.as_ref().err().is_some_and(|e| e == EN_NUBE)) == s => None,
                     _ => Some((k, e.ruta.as_path(), s)),
                 }
             })
             .collect();
         let leidos: Vec<(String, Registro)> = pendientes
             .par_iter()
-            .map(|(k, ruta, (mtime, tam))| (k.clone(), Registro { mtime: *mtime, tam: *tam, caras: leer::caras(ruta) }))
+            .map(|(k, ruta, (mtime, tam, nube))| (k.clone(), Registro { mtime: *mtime, tam: *tam, caras: if *nube { Err(EN_NUBE.into()) } else { leer::caras(ruta) } }))
             .collect();
         let n = leidos.len();
         self.archivos.extend(leidos);

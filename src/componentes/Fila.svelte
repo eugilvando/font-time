@@ -7,14 +7,14 @@
 
   let { f, estilo, muestra, tamano, sel, fav, bloqueada, motivo, onsel, onabrir, onalternar, onfav, onarrastre } = $props();
 
-  const on = $derived(f.activa || bloqueada);
+  const on = $derived(f.activa);
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div class="fila" class:sel onclick={onsel} ondblclick={onabrir} onpointerdown={onarrastre} data-familia={f.nombre}>
   <Interruptor activa={f.activa} {bloqueada} titulo={bloqueada ? motivo : f.activa ? t("deactivate") : t("activate")} onclick={onalternar} />
   <div class="txt">
-    <span class="nombre">{f.nombre}{#if f.error}<span class="roto"> · {t("err.ilegible")}</span>{/if}</span>
+    <span class="nombre">{f.nombre}{#if f.error}<span class="roto"> · {t(f.error === "cloud-only" ? "cloudOnly" : "err.ilegible")}</span>{/if}</span>
     <span
       class="muestra"
       class:off={!on}

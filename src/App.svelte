@@ -2,7 +2,7 @@
   import Marca from "./componentes/Marca.svelte";
   import { onMount } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
-  import { Search, List, LayoutGrid, Folder, FolderOpen, Trash2, X, Heart, WifiOff, Layers, Type, LoaderCircle } from "@lucide/svelte";
+  import { Search, List, LayoutGrid, FolderOpen, Trash2, X, Heart, WifiOff, Layers, Type, LoaderCircle } from "@lucide/svelte";
 
   import Lateral from "./componentes/Lateral.svelte";
   import Controles from "./componentes/Controles.svelte";
@@ -22,9 +22,10 @@
   import Comparar from "./vistas/Comparar.svelte";
 
   import { ajustes, enTauri, temaActual } from "./lib/ajustes.svelte.js";
-  import { t, locale } from "./lib/i18n.svelte.js";
+  import { arbolCarpetas, dentro, enCarpeta } from "./lib/carpetas.js";
+  import { t } from "./lib/i18n.svelte.js";
   import { avisar } from "./lib/avisos.svelte.js";
-  import { fuentes, iniciarFuentes, actualizarFuentes, alternar, instalar, estiloDe, ponerLista, llamar } from "./lib/fuentes.svelte.js";
+  import { fuentes, iniciarFuentes, actualizarFuentes, alternar, agregarArchivos, estiloDe, ponerLista, llamar } from "./lib/fuentes.svelte.js";
   import { biblioteca, iniciarBiblioteca, alternarFavorita, aFavoritas, nuevaColeccion, renombrar, eliminarColeccion, aColeccion } from "./lib/biblioteca.svelte.js";
   import { descubrir, cargarCatalogo, pedirVistas, precargar, instalarGoogle } from "./lib/descubrir.svelte.js";
   import { arrastre, empezarArrastre } from "./lib/arrastre.svelte.js";
@@ -32,7 +33,7 @@
 
   // ---- estado de la vista ----
   // instaladas | descubrir | favoritas | col:<id> | car:<ruta>
-  let seccion = $state(ajustes.alAbrir === "favoritas" ? "favoritas" : "instaladas");
+  let seccion = $state(ajustes.alAbrir === "carpeta" && ajustes.carpetaPrincipal ? "car:" + ajustes.carpetaPrincipal : ajustes.alAbrir === "favoritas" ? "favoritas" : "instaladas");
   let cat = $state(null);
   let q = $state("");
   let muestraPropia = $state("");
@@ -64,22 +65,24 @@
   const detalleF = $derived(detalle ? fuentes.lista.find((f) => f.nombre === detalle) : null);
   const comparadas = $derived(comparar.map((n) => fuentes.lista.find((f) => f.nombre === n)).filter(Boolean));
 
-  const bloqueada = (f) => f.origen === "sis" && (!ajustes.desbloqueadas || f.imprescindible);
-  const motivo = (f) => (f.imprescindible ? t("candado.imprescindible") : t("candado.sistema"));
+  const bloqueada = (f) => f.externa || f.error === "cloud-only" || f.origen === "sis" && (!ajustes.desbloqueadas || f.imprescindible);
+  const motivo = (f) => f.error === "cloud-only" ? t("cloudOnly") : f.externa ? t("externalFont") : (f.imprescindible ? t("candado.imprescindible") : t("candado.sistema"));
   // Las del sistema con candado no se enseñan salvo que se pida en ajustes
   // (en favoritas y colecciones sí: ahí las has puesto tú).
-  const visible = (f) => ajustes.verBloqueadas || !bloqueada(f);
+  const visible = (f) => ajustes.verBloqueadas || f.origen !== "sis" || !bloqueada(f);
   // Por archivo, no por origen: si la familia también está instalada, cuenta como instalada.
-  const enCarpeta = (f, ruta) => f.archivos.some((a) => a.toLowerCase().startsWith(ruta.toLowerCase() + "\\"));
   const favs = $derived(new Set(biblioteca.favoritas));
 
   // ---- listas ----
   const base = $derived.by(() => {
     const l = fuentes.lista;
+    if (seccion === "activas") return instaladas.filter((f) => f.activa);
+    if (seccion === "inactivas") return instaladas.filter((f) => !f.activa);
+    if (seccion === "recientes") return recientes;
     if (seccion === "favoritas") return l.filter((f) => favs.has(f.nombre));
     if (coleccion) return l.filter((f) => coleccion.fuentes.includes(f.nombre));
     if (carpeta) return l.filter((f) => enCarpeta(f, carpeta));
-    return l.filter((f) => f.origen !== "car" && visible(f));
+    return instaladas;
   });
   const ql = $derived(q.trim().toLowerCase());
   const lista = $derived(
@@ -87,7 +90,7 @@
       (f) =>
         (!cat || f.categoria === cat) &&
         (!ql || f.nombre.toLowerCase().includes(ql)) &&
-        (filtro === "todas" || (filtro === "activas") === (f.activa || bloqueada(f))),
+        (seccion === "activas" || seccion === "inactivas" || filtro === "todas" || (filtro === "activas") === f.activa),
     ),
   );
   const instaladasNombres = $derived(new Set(fuentes.lista.map((f) => f.nombre.toLowerCase())));
@@ -123,16 +126,18 @@
 
   const catCuentas = $derived.by(() => {
     const c = {};
-    for (const f of enDescubrir ? descubrir.lista : base) c[f.categoria] = (c[f.categoria] ?? 0) + 1;
+    for (const f of instaladas) c[f.categoria] = (c[f.categoria] ?? 0) + 1;
     return c;
   });
-  const instaladas = $derived(fuentes.lista.filter((f) => f.origen !== "car" && visible(f)));
-  const activasN = $derived(instaladas.filter((f) => f.activa || bloqueada(f)).length);
-  const cuentaGoogle = $derived(
-    descubrir.lista.length ? (descubrir.lista.length >= 1000 ? (Math.floor(descubrir.lista.length / 100) / 10).toLocaleString(locale()) + "k" : descubrir.lista.length) : "",
-  );
-  const cuentas = $derived({ instaladas: instaladas.length, descubrir: cuentaGoogle, favoritas: biblioteca.favoritas.length });
-  const carpetasCuenta = $derived(carpetas.map((c) => ({ ...c, cuenta: fuentes.lista.filter((f) => enCarpeta(f, c.ruta)).length })));
+  const instaladas = $derived(fuentes.lista.filter((f) => visible(f) || carpetas.some((c) => enCarpeta(f, c.ruta))));
+  const activasN = $derived(instaladas.filter((f) => f.activa).length);
+  const recientes = $derived.by(() => {
+    const porNombre = new Map(instaladas.map((f) => [f.nombre, f]));
+    return biblioteca.recientes.map((n) => porNombre.get(n)).filter(Boolean);
+  });
+  const cuentas = $derived({ instaladas: instaladas.length, activas: activasN, recientes: recientes.length,
+    inactivas: instaladas.length - activasN, descubrir: descubrir.lista.length || "", favoritas: biblioteca.favoritas.length });
+  const carpetasCuenta = $derived(arbolCarpetas(carpetas, fuentes.directorios, fuentes.lista));
 
   const cabecera = $derived(
     comparadas.length
@@ -148,8 +153,8 @@
               : coleccion
                 ? coleccion.nombre
                 : carpeta
-                  ? (carpetas.find((c) => c.ruta === carpeta)?.nombre ?? "")
-                  : t("sec.instaladas"),
+                  ? carpeta
+                  : t("sec." + seccion),
   );
   const vistaNormal = $derived(!detalleF && !comparadas.length);
 
@@ -172,12 +177,25 @@
   // ---- acciones ----
   function irA(s) {
     seccion = s;
+    q = "";
+    filtro = "todas";
     detalle = null;
     comparar = [];
     sel.clear();
     cat = null;
     colAbierta = false;
     if (s === "descubrir") cargarCatalogo();
+  }
+
+  function elegirCategoria(c) {
+    irA("instaladas");
+    cat = c;
+  }
+
+  function abrirFamilia(f) {
+    detalle = f.nombre;
+    sel.clear();
+    biblioteca.recientes = [f.nombre, ...biblioteca.recientes.filter((n) => n !== f.nombre)].slice(0, 100);
   }
 
   async function alternarUna(f) {
@@ -237,15 +255,18 @@
     else avisar("ok", t("ok.colDesactivada"), "");
   }
 
-  async function anadirCarpeta() {
+  async function anadirCarpeta(principal = false) {
     if (!enTauri) return;
-    const l = await llamar("anadir_carpeta");
-    if (!l) return;
-    const nueva = l.find((c) => !carpetas.some((x) => x.ruta === c.ruta));
-    carpetas = l;
-    if (nueva) irA("car:" + nueva.ruta);
-    // Una carpeta con miles de fuentes tarda en leerse: mientras, se dice.
-    leyendo = nueva?.ruta ?? null;
+    const seleccion = await llamar("anadir_carpeta");
+    if (!seleccion) return;
+    carpetas = seleccion.carpetas;
+    if (principal === true || !ajustes.carpetaPrincipal) {
+      ajustes.carpetaPrincipal = seleccion.ruta;
+      ajustes.alAbrir = "carpeta";
+    }
+    ajustesEn = null;
+    irA("car:" + seleccion.ruta);
+    leyendo = seleccion.ruta;
     try {
       await actualizarFuentes();
     } finally {
@@ -254,11 +275,14 @@
     avisar("ok", t("ok.carpeta"), t("ok.carpetaTexto"));
   }
 
-  async function quitarCarpeta() {
-    if (!carpeta) return;
-    carpetas = await llamar("quitar_carpeta", { ruta: carpeta });
+  async function quitarCarpeta(ruta) {
+    carpetas = await llamar("quitar_carpeta", { ruta });
+    if (ajustes.carpetaPrincipal === ruta) {
+      ajustes.carpetaPrincipal = "";
+      if (ajustes.alAbrir === "carpeta") ajustes.alAbrir = "instaladas";
+    }
     await actualizarFuentes();
-    irA("instaladas");
+    if (carpeta && (carpeta === ruta || dentro(carpeta, ruta)) && !carpetas.some((c) => carpeta === c.ruta || dentro(carpeta, c.ruta))) irA("instaladas");
     avisar("ok", t("ok.carpetaQuitada"), t("ok.carpetaQuitadaTexto"));
   }
 
@@ -370,11 +394,10 @@
           soltando = false;
           const rutas = (p.paths ?? []).filter((r) => /\.(ttf|otf|ttc|otc)$/i.test(r));
           if (!rutas.length) return avisar("err", t("err.noFuente"), t("err.noFuenteTexto"));
-          const todos = ajustes.instalarPara === "todos";
-          const r = await instalar(rutas, todos);
+          const r = await agregarArchivos(rutas);
           if (!r || !r.instaladas.length) return;
           const titulo = r.instaladas.length === 1 ? t("ok.instalada", { n: r.instaladas[0] }) : t("ok.instaladas", { n: r.instaladas.length });
-          avisar("ok", titulo, todos ? t("ok.paraTodos") : t("ok.soloTu"));
+          avisar("ok", titulo, t("catalogHint"));
         }
       });
     });
@@ -398,7 +421,7 @@
     bloqueada={bloqueada(f)}
     motivo={motivo(f)}
     onsel={() => seleccionar(f)}
-    onabrir={() => ((detalle = f.nombre), sel.clear())}
+    onabrir={() => abrirFamilia(f)}
     onalternar={() => alternarUna(f)}
     onfav={() => alternarFavorita(f.nombre)}
     onarrastre={(e) => arrastrar(e, f)}
@@ -414,7 +437,7 @@
     bloqueada={bloqueada(f)}
     motivo={motivo(f)}
     onsel={() => seleccionar(f)}
-    onabrir={() => ((detalle = f.nombre), sel.clear())}
+    onabrir={() => abrirFamilia(f)}
     onalternar={() => alternarUna(f)}
     onfav={() => alternarFavorita(f.nombre)}
     onarrastre={(e) => arrastrar(e, f)}
@@ -477,7 +500,7 @@
     pie={t("activas", { n: activasN, total: instaladas.length })}
     bind:renombrando
     onseccion={irA}
-    oncat={(c) => ((cat = c), (detalle = null), (comparar = []))}
+    oncat={elegirCategoria}
     onnueva={crearColeccion}
     onrenombrar={renombrar}
     onanadirCarpeta={anadirCarpeta}
@@ -526,10 +549,10 @@
     </header>
 
     <div class="titulo">
-      <span class="etiqueta">{cabecera}</span>
+      <span class="etiqueta" class:ruta-cabecera={carpeta && vistaNormal} title={cabecera}>{cabecera}</span>
       {#if vistaNormal}<span class="cuenta num">{enDescubrir ? listaGoogle.length : listaVista.length}</span>{/if}
       <div class="derecha">
-        {#if vistaNormal && !enDescubrir}
+        {#if vistaNormal && !enDescubrir && seccion !== "activas" && seccion !== "inactivas"}
           <Segmentado
             etiqueta={t("vista.todas")}
             opciones={["todas", "activas", "inactivas"].map((v) => ({ valor: v, etiqueta: t("vista." + v) }))}
@@ -539,7 +562,7 @@
             alto={22}
             fuente="600 11.5px"
           />
-        {:else if vistaNormal}
+        {:else if vistaNormal && enDescubrir}
           <Segmentado
             etiqueta={t("orden.popularidad")}
             opciones={["popularidad", "recientes", "alfabetico"].map((v) => ({ valor: v, etiqueta: t("orden." + v) }))}
@@ -560,15 +583,6 @@
         {/if}
       </div>
     </div>
-
-    {#if carpeta && vistaNormal}
-      <div class="aviso-carpeta">
-        <Folder size={16} strokeWidth={1.9} />
-        <span>{t("folderInfo")}</span>
-        <button type="button" class="pild blanca" onclick={anadirCarpeta}>{t("addAnother")}</button>
-        <button type="button" class="pild clara" onclick={quitarCarpeta}>{t("stopWatching")}</button>
-      </div>
-    {/if}
 
     {#if detalleF}
       <Especimen
@@ -662,7 +676,7 @@
         <div class="marco">
           <img src="/icon.svg" width="92" height="92" alt="" draggable="false" />
           <span class="st">{t("dropTitle")}</span>
-          <span class="sx">{ajustes.instalarPara === "todos" ? t("dropTextTodos") : t("dropText")}</span>
+          <span class="sx">{t("dropText")}</span>
         </div>
       </div>
     {/if}
@@ -675,7 +689,7 @@
   {/if}
 
   {#if ajustesEn}
-    <Ajustes bind:pestana={ajustesEn} oncerrar={() => (ajustesEn = null)} cuentas={{ instaladas: instaladas.length, activas: activasN, favoritas: biblioteca.favoritas.length }} />
+    <Ajustes {carpetas} onanadirCarpeta={() => anadirCarpeta()} onquitarCarpeta={quitarCarpeta} onelegirCarpeta={() => anadirCarpeta(true)} bind:pestana={ajustesEn} oncerrar={() => (ajustesEn = null)} cuentas={{ instaladas: instaladas.length, activas: activasN, favoritas: biblioteca.favoritas.length }} />
   {/if}
 
   <Avisos />
@@ -738,23 +752,6 @@
   .pild.borrar { background: transparent; color: var(--ink2); padding: 0 10px 0 8px; }
   .pild.borrar:hover { background: var(--hov); }
   .pild.borrar.seguro { background: var(--red); color: #fff; }
-  .pild.blanca { height: 26px; padding: 0 12px; background: var(--win); box-shadow: 0 0 0 1px var(--line2); font-size: 12px; }
-  .pild.clara { height: 26px; padding: 0 12px; background: transparent; color: var(--ink2); font-size: 12px; }
-  .pild.clara:hover { background: var(--hov); color: var(--ink); }
-  .aviso-carpeta {
-    flex: none;
-    margin: 0 24px 6px;
-    padding: 10px 12px;
-    border-radius: 10px;
-    background: var(--chip);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 12.5px;
-    line-height: 1.45;
-    color: var(--ink2);
-  }
-  .aviso-carpeta span { flex: 1; }
 
   .soltar { position: absolute; inset: 0; z-index: 9; padding: 14px; background: var(--win); animation: tf-fade 0.15s ease-out; }
   .marco { height: 100%; border: 1.5px dashed var(--line2); border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; }

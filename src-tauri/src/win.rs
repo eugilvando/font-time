@@ -172,3 +172,27 @@ pub fn como_admin(args: &str) -> Option<u32> {
         Some(codigo)
     }
 }
+
+/// Familias visibles en la sesión, incluidas las activadas por otro gestor.
+pub fn familias_visibles() -> std::collections::HashSet<String> {
+    use windows_sys::Win32::Graphics::Gdi::{DEFAULT_CHARSET, EnumFontFamiliesExW, GetDC, ReleaseDC, LOGFONTW, TEXTMETRICW};
+    use std::collections::HashSet;
+    unsafe extern "system" fn recoger(font: *const LOGFONTW, _: *const TEXTMETRICW, _: u32, data: isize) -> i32 {
+        let nombre = unsafe { &(*font).lfFaceName };
+        let fin = nombre.iter().position(|&c| c == 0).unwrap_or(nombre.len());
+        let familias = unsafe { &mut *(data as *mut HashSet<String>) };
+        familias.insert(String::from_utf16_lossy(&nombre[..fin]).to_lowercase());
+        1
+    }
+    let mut familias = HashSet::new();
+    unsafe {
+        let dc = GetDC(std::ptr::null_mut());
+        if !dc.is_null() {
+            let mut filtro: LOGFONTW = std::mem::zeroed();
+            filtro.lfCharSet = DEFAULT_CHARSET;
+            EnumFontFamiliesExW(dc, &filtro, Some(recoger), &mut familias as *mut _ as isize, 0);
+            ReleaseDC(std::ptr::null_mut(), dc);
+        }
+    }
+    familias
+}

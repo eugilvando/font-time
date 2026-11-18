@@ -55,8 +55,7 @@ fn instalar_desactivar_y_activar_una_de_usuario() {
     assert_eq!(f.origen, Origen::Biblioteca);
 
     // Desactivar: fuera del registro y a la carpeta de la app, sin borrar.
-    let mut apagadas = HashSet::new();
-    let r = cambios::alternar(&ent, &entradas, &cache, &["Gochi Hand".into()], false, false, &mut apagadas);
+    let r = cambios::alternar(&ent, &entradas, &cache, &["Gochi Hand".into()], false, false);
     assert_eq!(r.cambiadas, 1, "{:?}", r.errores);
     assert!(!instalada.exists());
     assert!(registro::leer(registro::hkcu(), &ent.clave_usuario).is_empty());
@@ -70,11 +69,11 @@ fn instalar_desactivar_y_activar_una_de_usuario() {
     assert!(!f.activa);
 
     // Desactivar otra vez no hace nada.
-    let r = cambios::alternar(&ent, &entradas, &cache, &["Gochi Hand".into()], false, false, &mut apagadas);
+    let r = cambios::alternar(&ent, &entradas, &cache, &["Gochi Hand".into()], false, false);
     assert_eq!(r.cambiadas, 0);
 
     // Activar: vuelve a su sitio y a su entrada del registro.
-    let r = cambios::alternar(&ent, &entradas, &cache, &["Gochi Hand".into()], true, false, &mut apagadas);
+    let r = cambios::alternar(&ent, &entradas, &cache, &["Gochi Hand".into()], true, false);
     assert_eq!(r.cambiadas, 1, "{:?}", r.errores);
     assert!(instalada.is_file());
     let reg = registro::leer(registro::hkcu(), &ent.clave_usuario);
@@ -140,4 +139,43 @@ fn arial_es_de_trustedinstaller() {
     let windir = std::env::var_os("WINDIR").unwrap();
     let arial = Path::new(&windir).join("Fonts").join("arial.ttf");
     assert_eq!(tunafonts_lib::win::de_trustedinstaller(&arial), Some(true));
+}
+
+#[test]
+fn catalogar_activar_persistir_y_apagar_solo_las_propias() {
+    let tmp = tempfile::tempdir().unwrap();
+    let base = format!(r"Software\tuna-fonts-pruebas\catalogo-{}", std::process::id());
+    let _limpia = Limpieza(base.clone());
+    let ent = Entorno {
+        fuentes_sistema: tmp.path().join("sistema"), fuentes_usuario: tmp.path().join("usuario"),
+        clave_sistema: format!(r"{base}\Sistema"), clave_usuario: format!(r"{base}\Fonts"),
+        datos: tmp.path().join("datos"), tocar_windows: false, de_windows: |_| false, de_programas: HashSet::new(),
+    };
+    let carpeta = tmp.path().join("OneDrive");
+    std::fs::create_dir(&carpeta).unwrap();
+    let original = carpeta.join("GochiHand.ttf");
+    let muestra = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/GochiHand-Regular.ttf");
+    std::fs::copy(&muestra, &original).unwrap();
+    let fuentes_en = || fuentes::entradas(&ent, std::slice::from_ref(&carpeta));
+    let nombre = vec!["Gochi Hand".into()];
+    let mut cache = Cache::default();
+    let lista = fuentes_en();
+    cache.actualizar(&lista);
+    assert!(!cache.familias[0].activa);
+    assert!(registro::leer(registro::hkcu(), &ent.clave_usuario).is_empty());
+    let r = cambios::alternar(&ent, &lista, &cache, &nombre, true, false);
+    assert!(r.errores.is_empty(), "{:?}", r.errores);
+    let mut reabierta = Cache::default();
+    reabierta.actualizar(&fuentes_en());
+    assert!(reabierta.familias[0].activa);
+    assert_eq!(registro::leer(registro::hkcu(), &ent.clave_usuario).len(), 1);
+
+    let externa = carpeta.join("externa.ttf");
+    registro::poner(registro::hkcu(), &ent.clave_usuario, "otra aplicación", &externa.to_string_lossy()).unwrap();
+    fuentes::activacion::desactivar_propias(&ent).unwrap();
+    fuentes::activacion::desactivar_propias(&ent).unwrap();
+    assert_eq!(registro::leer(registro::hkcu(), &ent.clave_usuario), vec![("otra aplicación".into(), externa.to_string_lossy().to_string())]);
+    reabierta.actualizar(&fuentes_en());
+    assert!(!reabierta.familias[0].activa);
+    assert_eq!(std::fs::read(&original).unwrap(), std::fs::read(&muestra).unwrap());
 }

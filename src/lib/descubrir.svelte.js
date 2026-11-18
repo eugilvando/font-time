@@ -89,7 +89,7 @@ export async function instalarGoogle(familia, alTerminar) {
     const r = await invoke("google_instalar", { familia });
     alTerminar(r);
     if (r.resultado.errores.length) avisar("err", t("err.instalar"), r.resultado.errores[0]);
-    else avisar("ok", t("ok.instalada", { n: familia }), t("ok.yaSale"));
+    else avisar("ok", t("ok.instalada", { n: familia }), t("catalogHint"));
   } catch (e) {
     avisar("err", t("err.descargar", { n: familia }), String(e));
   } finally {

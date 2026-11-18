@@ -69,14 +69,15 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          if ($env:TAURI_SIGNING_PRIVATE_KEY) {
+          $updaterKey = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).plugins.updater.pubkey
+          if ($updaterKey -and $env:TAURI_SIGNING_PRIVATE_KEY) {
             # Solo aquí se generan los paquetes firmados (.sig): compilar en local no pide la clave.
             npm run instalador -- --ci --config src-tauri/tauri.release.conf.json
             "FIRMADO=1" >> $env:GITHUB_ENV
-          } elseif ($env:ES_TAG -eq "true") {
+          } elseif ($updaterKey -and $env:ES_TAG -eq "true") {
             throw "faltan los secrets TAURI_SIGNING_PRIVATE_KEY y TAURI_SIGNING_PRIVATE_KEY_PASSWORD: sin firma, el actualizador no aceptaría esta versión"
           } else {
-            Write-Warning "sin clave de firma: se compila sin los archivos del actualizador"
+            Write-Host "Distribución manual: instalador y zip portable"
             npm run instalador -- --ci
             "FIRMADO=0" >> $env:GITHUB_ENV
           }

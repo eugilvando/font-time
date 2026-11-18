@@ -5,7 +5,7 @@
   import Segmentado from "../componentes/Segmentado.svelte";
   // La taza oficial de Ko-fi va dentro del código (Vite la incrusta como data:), sin pedir nada a nadie.
   import tazaKofi from "../assets/kofi.svg?inline";
-  import { ajustes, temaActual, ponerTema, ponerIdioma, version, ATAJOS } from "../lib/ajustes.svelte.js";
+  import { ajustes, ponerTema, ponerIdioma, version, ATAJOS } from "../lib/ajustes.svelte.js";
   import { t } from "../lib/i18n.svelte.js";
   import { avisar } from "../lib/avisos.svelte.js";
   import { respaldadas, restaurarSistema, fuentes } from "../lib/fuentes.svelte.js";
@@ -30,7 +30,7 @@
             : t("aj.actHint"),
   );
 
-  let { pestana = $bindable(), oncerrar, cuentas } = $props();
+  let { pestana = $bindable(), oncerrar, cuentas, carpetas, onanadirCarpeta, onquitarCarpeta, onelegirCarpeta } = $props();
 
   const PESTANAS = [
     { id: "ajustes", texto: () => t("settings"), icono: SlidersHorizontal },
@@ -71,9 +71,8 @@
   }
 
   const filas = $derived([
-    { etiqueta: t("aj.tema"), pista: t("aj.temaHint"), valor: temaActual(), elegir: ponerTema, opciones: [["light", t("aj.claro")], ["dark", t("aj.oscuro")]] },
-    { etiqueta: t("aj.instalar"), pista: t("aj.instalarHint"), valor: ajustes.instalarPara, elegir: (v) => (ajustes.instalarPara = v), opciones: [["usuario", t("aj.soloYo")], ["todos", t("aj.todos")]] },
-    { etiqueta: t("aj.abrir"), pista: t("aj.abrirHint"), valor: ajustes.alAbrir, elegir: (v) => (ajustes.alAbrir = v), opciones: [["instaladas", t("sec.instaladas")], ["favoritas", t("sec.favoritas")]] },
+    { etiqueta: t("aj.tema"), pista: t("aj.temaHint"), valor: ajustes.tema, elegir: ponerTema, opciones: [[null, t("aj.temaSistema")], ["light", t("aj.claro")], ["dark", t("aj.oscuro")]] },
+    { etiqueta: t("aj.abrir"), pista: t("aj.abrirHint"), valor: ajustes.alAbrir, elegir: (v) => (ajustes.alAbrir = v), opciones: [["instaladas", t("sec.instaladas")], ["favoritas", t("sec.favoritas")], ...(ajustes.carpetaPrincipal ? [["carpeta", t("mainFolder")]] : [])] },
     { etiqueta: t("aj.cerrar"), pista: t("aj.cerrarHint"), valor: ajustes.alCerrar, elegir: (v) => (ajustes.alCerrar = v), opciones: [["bandeja", t("aj.bandeja")], ["salir", t("aj.salir")]] },
     { etiqueta: t("aj.inicio"), pista: t("aj.inicioHint"), valor: inicioWin, elegir: ponerInicio, opciones: [[true, t("aj.si")], [false, t("aj.no")]] },
     { etiqueta: t("aj.sistema"), pista: t("aj.sistemaHint"), valor: ajustes.desbloqueadas, elegir: desbloquear, opciones: [[false, t("aj.bloqueadas")], [true, t("aj.desbloquear")]] },
@@ -149,6 +148,22 @@
 
       <div class="scroll">
       {#if pestana === "ajustes"}
+        <div class="fila">
+          <span class="txt"><span class="eti">{t("mainFolder")}</span><span class="pista ruta" title={ajustes.carpetaPrincipal}>{ajustes.carpetaPrincipal || t("mainFolderHint")}</span></span>
+          <button type="button" class="boton" onclick={onelegirCarpeta}>{t("chooseFolder")}</button>
+        </div>
+        <section class="carpetas" aria-label={t("grupo.carpetas")}>
+          <div class="fila">
+            <div class="txt"><span class="eti">{t("grupo.carpetas")}</span><span class="pista">{t("folderInfo")}</span></div>
+            <button type="button" class="boton" onclick={onanadirCarpeta}>{t("car.anadir")}</button>
+          </div>
+          {#each carpetas as c (c.ruta)}
+            <div class="fila carpeta" data-ruta={c.ruta}>
+              <span class="pista ruta" title={c.ruta}>{c.ruta}</span>
+              <button type="button" class="boton" onclick={() => onquitarCarpeta(c.ruta)}>{t("stopWatching")}</button>
+            </div>
+          {/each}
+        </section>
         {#each filas as f (f.etiqueta)}
           <div class="fila">
             <span class="txt">
@@ -158,6 +173,13 @@
             <Segmentado etiqueta={f.etiqueta} opciones={f.opciones.map(([valor, etiqueta]) => ({ valor, etiqueta }))} valor={f.valor} onelegir={f.elegir} />
           </div>
         {/each}
+        <div class="fila">
+          <label class="txt" for="desactivar-salida">
+            <span class="eti">{t("aj.desactivarSalir")}</span>
+            <span class="pista">{t("aj.desactivarSalirHint")}</span>
+          </label>
+          <input id="desactivar-salida" class="toggle" role="switch" type="checkbox" bind:checked={ajustes.desactivarAlSalir} />
+        </div>
         {#if actualizadorDisponible}
           <div class="fila">
             <span class="txt">
@@ -257,6 +279,13 @@
 </div>
 
 <style>
+  .carpeta { padding-top: 10px; }
+  .carpeta .boton { flex: none; }
+  .ruta { overflow-wrap: anywhere; }
+  .toggle { appearance: none; width: 36px; height: 20px; padding: 2px; border: 0; border-radius: 14px; background: var(--off); cursor: pointer; }
+  .toggle::before { content: ""; display: block; width: 16px; height: 16px; border-radius: 50%; background: white; }
+  .toggle:checked { background: var(--ok); }
+  .toggle:checked::before { transform: translateX(16px); }
   .velo { position: absolute; inset: 0; z-index: 15; background: var(--velo); display: flex; align-items: center; justify-content: center; animation: tf-fade 0.15s ease-out; }
   .modal {
     width: 680px;
