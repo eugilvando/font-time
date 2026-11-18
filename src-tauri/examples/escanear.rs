@@ -1,8 +1,11 @@
 //! Lee las fuentes de este equipo (sin tocar nada) y enseña cuánto tarda.
 //! cargo run --release --example escanear
+#[cfg(windows)]
 use std::time::Instant;
+#[cfg(windows)]
 use tunafonts_lib::fuentes::{self, cache::Cache, Entorno};
 
+#[cfg(windows)]
 fn main() {
     let tmp = std::env::temp_dir().join("tuna-fonts-escanear");
     let ent = Entorno { tocar_windows: false, ..Entorno::real(tmp) };
@@ -26,3 +29,6 @@ fn main() {
     }
     for f in c.familias.iter().filter(|f| f.error.is_some()).take(5) { println!("error: {} {:?}", f.nombre, f.error); }
 }
+
+#[cfg(unix)]
+fn main() { eprintln!("Windows inventory example"); }

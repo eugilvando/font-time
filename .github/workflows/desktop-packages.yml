@@ -1,0 +1,89 @@
+name: Build experimental desktop packages
+on:
+  push:
+    tags: ["desktop-*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            format: deb
+          - os: macos-15
+            format: dmg
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 80
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+      - if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev libdbus-1-dev
+      - run: npm ci
+      - name: Build and inspect native package
+        shell: bash
+        env:
+          CI: "true"
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          mkdir -p deliver
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            rustup target add aarch64-apple-darwin x86_64-apple-darwin
+            npm run tauri -- build --ci --bundles dmg --target universal-apple-darwin
+            bundle=src-tauri/target/universal-apple-darwin/release/bundle
+            lipo -verify_arch x86_64 arm64 "$bundle/macos/Font Time.app/Contents/MacOS/font-time"
+            disks=("$bundle"/dmg/*.dmg)
+            hdiutil verify "${disks[0]}"
+            cp "${disks[0]}" "deliver/font-time_${version}_macos-universal.dmg"
+          else
+            npm run tauri -- build --ci --bundles deb
+            pkgs=(src-tauri/target/release/bundle/deb/*.deb)
+            dpkg-deb --info "${pkgs[0]}"
+            test "$(dpkg-deb -f "${pkgs[0]}" Architecture)" = "amd64"
+            test "$(dpkg-deb -f "${pkgs[0]}" Version)" = "$version"
+            dpkg-deb -x "${pkgs[0]}" "$RUNNER_TEMP/pkg"
+            file "$RUNNER_TEMP/pkg/usr/bin/font-time" | grep 'ELF 64-bit.*x86-64'
+            cp "${pkgs[0]}" "deliver/font-time_${version}_ubuntu-24.04_amd64.deb"
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: desktop-${{ matrix.format }}
+          path: deliver/*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: desktop-*
+          merge-multiple: true
+          path: deliver
+      - name: Attach to existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          gh release view "v$version" >/dev/null
+          cd deliver
+          sha256sum *.deb *.dmg > SHA256SUMS-desktop.txt
+          gh release upload "v$version" *.dmg *.deb SHA256SUMS-desktop.txt

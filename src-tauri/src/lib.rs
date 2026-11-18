@@ -1,7 +1,10 @@
+#[cfg(windows)]
 mod bandeja;
+#[cfg(windows)]
 mod inicio;
 pub mod fuentes;
 mod google;
+#[cfg(windows)]
 pub mod win;
 
 use fuentes::{cache::Cache, cambios, Entorno, Familia, Origen};
@@ -51,25 +54,34 @@ impl Estado {
 
     fn actualizar_cache(&self, entradas: &[fuentes::Entrada], cache: &mut Cache) -> usize {
         let leidas = cache.actualizar(entradas);
-        let mut catalogadas = HashSet::new();
-        let mut propias = HashSet::new();
-        let mut externas = HashSet::new();
-        let dir = self.ent.activas();
-        for e in entradas {
-            let grupo = if e.ruta.parent() == Some(dir.as_path()) { &mut propias }
-                else if e.origen == Origen::Carpeta { &mut catalogadas }
-                else if e.activa { &mut externas } else { continue };
-            if let Some(caras) = cache.caras(&e.ruta) {
-                grupo.extend(caras.into_iter().map(|c| c.familia.to_lowercase()));
-            }
+        #[cfg(unix)]
+        {
+            let externas: HashSet<_> = entradas.iter().filter(|e| e.activa && e.origen != Origen::Biblioteca)
+                .filter_map(|e| cache.caras(&e.ruta)).flatten().map(|c| c.familia.to_lowercase()).collect();
+            for f in &mut cache.familias { f.externa = externas.contains(&f.nombre.to_lowercase()); }
         }
-        let visibles = if catalogadas.is_empty() { HashSet::new() } else { win::familias_visibles() };
-        for f in &mut cache.familias {
-            let nombre = f.nombre.to_lowercase();
-            if catalogadas.contains(&nombre) && (externas.contains(&nombre)
-                || (!propias.contains(&nombre) && f.estilos.iter().any(|e| visibles.contains(&e.familia_win.to_lowercase())))) {
-                f.activa = true;
-                f.externa = true;
+        #[cfg(windows)]
+        {
+            let mut catalogadas = HashSet::new();
+            let mut propias = HashSet::new();
+            let mut externas = HashSet::new();
+            let dir = self.ent.activas();
+            for e in entradas {
+                let grupo = if e.ruta.parent() == Some(dir.as_path()) { &mut propias }
+                    else if e.origen == Origen::Carpeta { &mut catalogadas }
+                    else if e.activa { &mut externas } else { continue };
+                if let Some(caras) = cache.caras(&e.ruta) {
+                    grupo.extend(caras.into_iter().map(|c| c.familia.to_lowercase()));
+                }
+            }
+            let visibles = if catalogadas.is_empty() { HashSet::new() } else { win::familias_visibles() };
+            for f in &mut cache.familias {
+                let nombre = f.nombre.to_lowercase();
+                if catalogadas.contains(&nombre) && (externas.contains(&nombre)
+                    || (!propias.contains(&nombre) && f.estilos.iter().any(|e| visibles.contains(&e.familia_win.to_lowercase())))) {
+                    f.activa = true;
+                    f.externa = true;
+                }
             }
         }
         leidas
@@ -173,6 +185,7 @@ fn catalogar(ent: &Entorno, rutas: &[PathBuf]) -> cambios::Resultado {
 }
 
 /// Ajustes → «restaurar todas las del sistema».
+#[cfg(windows)]
 #[tauri::command]
 async fn restaurar_sistema(app: AppHandle) -> Result<Salida, String> {
     fondo(move || {
@@ -192,6 +205,7 @@ async fn restaurar_sistema(app: AppHandle) -> Result<Salida, String> {
     .await
 }
 
+#[cfg(windows)]
 #[tauri::command]
 fn respaldadas(estado: State<Estado>) -> usize {
     fuentes::respaldadas(&estado.ent).len()
@@ -251,8 +265,7 @@ fn lista_carpetas(estado: &Estado) -> Vec<Carpeta> {
         .unwrap()
         .iter()
         .map(|p| {
-            let comps: Vec<String> = p.components().rev().take(2).map(|c| c.as_os_str().to_string_lossy().to_lowercase()).collect();
-            let nombre = comps.into_iter().rev().collect::<Vec<_>>().join("\\");
+            let nombre = p.file_name().unwrap_or_else(|| p.as_os_str()).to_string_lossy().into_owned();
             Carpeta { ruta: p.to_string_lossy().into_owned(), nombre }
         })
         .collect()
@@ -361,11 +374,15 @@ fn abrir_web(cual: String) -> Result<(), String> {
     };
     // Con ShellExecute y no con «explorer url»: el Explorador no reconoce como web
     // una dirección con parámetros (?a=1&b=2) y abría la carpeta Documentos.
-    win::abrir_url(url)
+    #[cfg(windows)]
+    { win::abrir_url(url) }
+    #[cfg(unix)]
+    { abrir_nativo(Path::new(url), false) }
 }
 
 /// Abre el Explorador con el archivo de una fuente seleccionado. Solo acepta
 /// archivos de fuente que existan: la interfaz no puede abrir otra cosa.
+#[cfg(windows)]
 #[tauri::command]
 fn mostrar_en_explorador(ruta: String) -> Result<(), String> {
     use std::os::windows::process::CommandExt;
@@ -383,6 +400,27 @@ fn mostrar_en_explorador(ruta: String) -> Result<(), String> {
         .spawn()
         .map(|_| ())
         .map_err(err)
+}
+
+#[cfg(unix)]
+fn abrir_nativo(path: &Path, revelar: bool) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    let mut comando = std::process::Command::new("open");
+    #[cfg(target_os = "macos")]
+    if revelar { comando.arg("-R"); }
+    #[cfg(target_os = "linux")]
+    let mut comando = std::process::Command::new("xdg-open");
+    #[cfg(target_os = "linux")]
+    let path = if revelar { path.parent().ok_or("Missing parent directory")? } else { path };
+    comando.arg(path).spawn().map(|_| ()).map_err(err)
+}
+
+#[cfg(unix)]
+#[tauri::command]
+fn mostrar_en_explorador(ruta: String) -> Result<(), String> {
+    let path = PathBuf::from(ruta);
+    if !path.is_absolute() || !path.is_file() || !fuentes::es_fuente(&path) { return Err("Invalid font path".into()); }
+    abrir_nativo(&path, true)
 }
 
 // ---- arranque ----
@@ -419,6 +457,7 @@ fn script_inicio(inicio: &Value) -> String {
 }
 
 /// Tema oscuro de Windows (apps), para la primera vez que se abre.
+#[cfg(windows)]
 fn windows_oscuro() -> bool {
     winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER)
         .open_subkey(r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
@@ -429,6 +468,7 @@ fn windows_oscuro() -> bool {
 
 /// Idioma de Windows para el primer arranque: "es" si la interfaz del sistema
 /// está en español (cualquier variante), "en" para todo lo demás.
+#[cfg(windows)]
 fn idioma_windows() -> &'static str {
     // SAFETY: sin argumentos; devuelve el LANGID de la interfaz del usuario.
     let langid = unsafe { windows_sys::Win32::Globalization::GetUserDefaultUILanguage() };
@@ -436,6 +476,7 @@ fn idioma_windows() -> &'static str {
 }
 
 /// Con `--elevado <peticion.json>`: la copia con permisos de administrador.
+#[cfg(windows)]
 pub fn modo_elevado() -> Option<i32> {
     let mut args = std::env::args_os().skip(1);
     if args.next()?.to_str()? != "--elevado" {
@@ -448,7 +489,9 @@ pub fn modo_elevado() -> Option<i32> {
 pub fn run() {
     let app = tauri::Builder::default()
         // Una sola tuna-fonts a la vez: dos moviendo las mismas fuentes se pisarían.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| bandeja::mostrar(app)))
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(w) = app.get_webview_window("main") { let _ = w.show(); let _ = w.unminimize(); let _ = w.set_focus(); }
+        }))
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -456,6 +499,7 @@ pub fn run() {
         // La X y Alt+F4: a la bandeja (las carpetas vigiladas siguen disponibles),
         // salvo que en ajustes se haya elegido cerrar del todo.
         .on_window_event(|w, ev| {
+            #[cfg(windows)]
             if let tauri::WindowEvent::CloseRequested { api, .. } = ev {
                 if w.label() == "main" {
                     api.prevent_close();
@@ -469,8 +513,8 @@ pub fn run() {
             fuentes_actualizar,
             alternar,
             agregar_archivos,
-            restaurar_sistema,
-            respaldadas,
+            #[cfg(windows)] restaurar_sistema,
+            #[cfg(windows)] respaldadas,
             caracteres,
             carpetas,
             anadir_carpeta,
@@ -479,20 +523,26 @@ pub fn run() {
             google_instalar,
             es_portable,
             abrir_web,
-            bandeja::poner_bandeja,
-            bandeja::estado_bandeja,
-            bandeja::accion_bandeja,
-            inicio::inicio_windows,
-            inicio::poner_inicio_windows,
-            inicio::marcar_mostrar_al_abrir,
+            #[cfg(windows)] bandeja::poner_bandeja,
+            #[cfg(windows)] bandeja::estado_bandeja,
+            #[cfg(windows)] bandeja::accion_bandeja,
+            #[cfg(windows)] inicio::inicio_windows,
+            #[cfg(windows)] inicio::poner_inicio_windows,
+            #[cfg(windows)] inicio::marcar_mostrar_al_abrir,
             mostrar_en_explorador,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
             let datos = app.path().app_data_dir()?;
             // Con Windows (--oculta) se queda en la bandeja; tras actualizarse, no.
+            #[cfg(windows)]
             let oculta = inicio::arrancar_oculta(&datos);
+            #[cfg(unix)]
+            let oculta = false;
+            #[cfg(windows)]
             let ent = Entorno::real(datos.clone());
+            #[cfg(unix)]
+            let ent = Entorno::para_usuario(datos.clone(), &app.path().home_dir()?);
             let cache = Cache::cargar(&datos.join("fonts-cache.json"));
             let carpetas: Vec<PathBuf> = fs::read(datos.join("carpetas.json"))
                 .ok()
@@ -505,7 +555,11 @@ pub fn run() {
             // Vistas previas de las que no están instaladas ahora (desactivadas,
             // de carpetas, recién instaladas): se cargan desde su archivo.
             let alcance = app.asset_protocol_scope();
-            for d in [ent.desactivadas(), ent.respaldo(), ent.activas(), ent.biblioteca(), ent.fuentes_usuario.clone(), ent.fuentes_sistema.clone()] {
+            #[cfg(windows)]
+            let sistema = vec![ent.fuentes_sistema.clone(), ent.desactivadas(), ent.respaldo()];
+            #[cfg(unix)]
+            let sistema = ent.directorios_sistema();
+            for d in sistema.into_iter().chain([ent.activas(), ent.biblioteca(), ent.fuentes_usuario.clone()]) {
                 let _ = alcance.allow_directory(d, true);
             }
             for c in &carpetas {
@@ -525,14 +579,24 @@ pub fn run() {
             let oscuro = match ajustes["tema"].as_str() {
                 Some("dark") => true,
                 Some("light") => false,
+                #[cfg(windows)]
                 _ => windows_oscuro(),
+                #[cfg(unix)]
+                _ => false,
             };
+            #[cfg(windows)]
             let tema = if oscuro { "dark" } else { "light" };
+            #[cfg(windows)]
             bandeja::crear(&handle, tema, ajustes["idioma"].as_str().unwrap_or(idioma_windows()))?;
+            #[cfg(windows)]
+            let idioma = Some(idioma_windows());
+            #[cfg(unix)]
+            let idioma: Option<&str> = None;
             let inicio = json!({
                 "ajustes": ajustes,
                 "version": app.package_info().version.to_string(),
-                "idiomaSistema": idioma_windows(),
+                "idiomaSistema": idioma,
+                "plataforma": std::env::consts::OS,
                 "actualizador": app.config().plugins.0.get("updater")
                     .and_then(|cfg| cfg["pubkey"].as_str()).is_some_and(|key| !key.is_empty()),
             });
@@ -543,12 +607,13 @@ pub fn run() {
                 .inner_size(1280.0, 820.0)
                 .min_inner_size(960.0, 600.0)
                 .center()
-                .decorations(false)
+                .decorations(cfg!(unix))
                 .shadow(true)
                 .zoom_hotkeys_enabled(false)
                 .background_color(if oscuro { FONDO_OSCURO } else { FONDO_CLARO }.into())
                 .initialization_script(script_inicio(&inicio))
                 .build()?;
+            #[cfg(windows)]
             win::poner_iconos_ventana(principal.hwnd()?.0)?;
             Ok(())
         })

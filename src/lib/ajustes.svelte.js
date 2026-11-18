@@ -8,6 +8,10 @@ import { version as versionPaquete } from "../../package.json";
 // Fuera de Tauri (vista previa en el navegador) la versión sale de package.json.
 const inicio = window.__TUNA__ ?? { ajustes: {}, version: versionPaquete };
 
+export const plataforma = inicio.plataforma ?? "windows";
+export const esWindows = plataforma === "windows";
+const idiomaNavegador = navigator.language?.split("-")[0].toLowerCase();
+const idiomaSistema = inicio.idiomaSistema ?? ({ pt: "pt-BR", es: "es" }[idiomaNavegador] ?? "en");
 export const enTauri = "__TAURI_INTERNALS__" in window;
 export const version = inicio.version;
 
@@ -17,7 +21,7 @@ const POR_DEFECTO = {
   // null = el de Windows la primera vez; luego, el que elijas.
   tema: null,
   // El de Windows la primera vez (es si está en español, en para lo demás); luego, el que elijas.
-  idioma: inicio.idiomaSistema ?? "en",
+  idioma: idiomaSistema,
   // true en cuanto se elige el idioma a mano en ajustes (desde la 0.2.1).
   idiomaElegido: false,
   // usuario | todos (pide permisos)
@@ -43,7 +47,7 @@ const POR_DEFECTO = {
 export const ajustes = $state({ ...POR_DEFECTO, ...inicio.ajustes });
 ajustes.atajos = { ...ATAJOS, ...(ajustes.atajos || {}) };
 
-if (!ajustes.idiomaElegido && inicio.idiomaSistema) ajustes.idioma = inicio.idiomaSistema;
+if (!ajustes.idiomaElegido) ajustes.idioma = idiomaSistema;
 
 export function ponerIdioma(idioma) {
   ajustes.idioma = idioma;

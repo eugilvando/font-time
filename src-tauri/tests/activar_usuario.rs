@@ -1,3 +1,4 @@
+#![cfg(windows)]
 //! Activar y desactivar una fuente de usuario de prueba, sin tocar las de
 //! verdad: carpetas temporales y una clave de registro propia en HKCU que se
 //! borra al acabar. No se carga nada en Windows (tocar_windows = false).

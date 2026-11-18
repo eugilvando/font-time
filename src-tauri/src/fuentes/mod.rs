@@ -1,12 +1,21 @@
 //! Inventario de fuentes: qué hay instalado (sistema y usuario), qué ha
 //! desactivado tuna-fonts y qué hay en las carpetas vigiladas, agrupado por familia.
 
+#[cfg(windows)]
 pub mod activacion;
+#[cfg(unix)]
+mod unix;
+#[cfg(unix)]
+pub use unix::{entradas_con_directorios, activacion, cambios};
+mod resultado;
 pub mod cache;
+#[cfg(windows)]
 pub mod cambios;
 pub mod categoria;
 pub mod leer;
+#[cfg(windows)]
 pub mod registro;
+#[cfg(windows)]
 pub mod sistema;
 
 use serde::{Deserialize, Serialize};
@@ -40,23 +49,30 @@ pub fn es_fuente(ruta: &Path) -> bool {
 /// clave de registro de prueba, y no carga nada en Windows.
 #[derive(Clone, Debug)]
 pub struct Entorno {
+    #[cfg(windows)]
     pub fuentes_sistema: PathBuf,
     pub fuentes_usuario: PathBuf,
+    #[cfg(windows)]
     pub clave_sistema: String,
+    #[cfg(windows)]
     pub clave_usuario: String,
     /// Carpeta de datos de la app.
     pub datos: PathBuf,
     /// false en los tests: ni AddFontResourceEx ni WM_FONTCHANGE.
+    #[cfg(windows)]
     pub tocar_windows: bool,
     /// ¿Este archivo de la carpeta de fuentes del sistema lo trae Windows?
     /// En la app, mira si es de TrustedInstaller; en los tests se simula.
+    #[cfg(windows)]
     pub de_windows: fn(&Path) -> bool,
     /// Nombres de archivo (en minúsculas) de las fuentes que trae Office: su
     /// instalador las copia a la carpeta del sistema y cuentan como del sistema.
+    #[cfg(windows)]
     pub de_programas: HashSet<String>,
 }
 
 impl Entorno {
+    #[cfg(windows)]
     pub fn real(datos: PathBuf) -> Self {
         use windows_sys::Win32::UI::Shell::{FOLDERID_Fonts, FOLDERID_LocalAppData};
         // Carpetas conocidas; las variables de entorno solo como último recurso.
@@ -80,6 +96,7 @@ impl Entorno {
     pub fn desactivadas(&self) -> PathBuf {
         self.datos.join("desactivadas")
     }
+    #[cfg(windows)]
     pub fn activas(&self) -> PathBuf {
         self.datos.join("activas")
     }
@@ -143,6 +160,7 @@ pub fn poner_respaldadas(ent: &Entorno, v: &[Guardada]) -> Result<(), String> {
 }
 /// De Windows si su dueño es TrustedInstaller; si no se puede leer, por si acaso, también.
 /// Las de Office y las instaladas a mano «para todos» son de Administradores.
+#[cfg(windows)]
 pub fn propietario_windows(ruta: &Path) -> bool {
     crate::win::de_trustedinstaller(ruta).unwrap_or(true)
 }
@@ -160,6 +178,7 @@ pub fn poner_de_windows_apuntadas(ent: &Entorno, v: &HashSet<String>) -> Result<
 /// Office (Click-to-Run) guarda una copia de cada fuente que instala en
 /// `Microsoft Office\root\vfs\Fonts\private`; con eso se reconocen en la
 /// carpeta del sistema aunque no sean de TrustedInstaller.
+#[cfg(windows)]
 fn fuentes_de_office() -> HashSet<String> {
     use windows_sys::Win32::UI::Shell::{FOLDERID_ProgramFiles, FOLDERID_ProgramFilesX86};
     let mut v = HashSet::new();
@@ -175,6 +194,7 @@ fn fuentes_de_office() -> HashSet<String> {
 }
 
 /// Origen de un archivo de la carpeta de fuentes del sistema.
+#[cfg(windows)]
 pub fn origen_en_sistema(ent: &Entorno, ruta: &Path, app: &HashSet<String>, apuntadas: &HashSet<String>) -> Origen {
     let k = clave_ruta(ruta);
     if app.contains(&k) {
@@ -186,6 +206,7 @@ pub fn origen_en_sistema(ent: &Entorno, ruta: &Path, app: &HashSet<String>, apun
     }
 }
 
+#[cfg(windows)]
 fn de_programa(ent: &Entorno, ruta: &Path) -> bool {
     ruta.file_name().is_some_and(|n| ent.de_programas.contains(&n.to_string_lossy().to_lowercase()))
 }
@@ -198,7 +219,10 @@ pub fn poner_de_la_app(ent: &Entorno, v: &HashSet<String>) -> Result<(), String>
     escribir_json(&ent.datos.join("instaladas-por-app.json"), v)
 }
 pub fn clave_ruta(r: &Path) -> String {
-    r.to_string_lossy().to_lowercase()
+    #[cfg(windows)]
+    { r.to_string_lossy().to_lowercase() }
+    #[cfg(unix)]
+    { r.to_string_lossy().into_owned() }
 }
 
 /// Un archivo de fuente con su sitio en el inventario.
@@ -223,6 +247,7 @@ pub fn entradas(ent: &Entorno, vigiladas: &[PathBuf]) -> Vec<Entrada> {
     entradas_con_directorios(ent, vigiladas, &mut Vec::new())
 }
 
+#[cfg(windows)]
 pub fn entradas_con_directorios(ent: &Entorno, vigiladas: &[PathBuf], directorios: &mut Vec<PathBuf>) -> Vec<Entrada> {
     let mut fuera: Vec<Entrada> = Vec::new();
     let mut vistas: HashSet<String> = HashSet::new();

@@ -26,6 +26,9 @@ pub struct Cache {
 
 const VERSION: u32 = 3;
 pub const EN_NUBE: &str = "cloud-only";
+#[cfg(unix)]
+fn en_nube(_: &fs::Metadata) -> bool { false }
+#[cfg(windows)]
 fn en_nube(m: &fs::Metadata) -> bool {
     use std::os::windows::fs::MetadataExt;
     use windows_sys::Win32::Storage::FileSystem::{FILE_ATTRIBUTE_OFFLINE, FILE_ATTRIBUTE_RECALL_ON_OPEN, FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS};

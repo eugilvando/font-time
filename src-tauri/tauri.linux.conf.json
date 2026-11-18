@@ -1,0 +1,23 @@
+{
+  "bundle": {
+    "targets": [
+      "deb"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png"
+    ],
+    "shortDescription": "Font library and activation manager for Linux",
+    "linux": {
+      "deb": {
+        "depends": [
+          "fontconfig",
+          "libwebkit2gtk-4.1-0",
+          "libgtk-3-0t64",
+          "libayatana-appindicator3-1"
+        ]
+      }
+    }
+  }
+}

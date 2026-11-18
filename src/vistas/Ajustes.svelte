@@ -9,7 +9,7 @@
   import { respaldadas, restaurarSistema, fuentes } from "../lib/fuentes.svelte.js";
   import { comboDe } from "../lib/atajos.js";
   import { nueva, buscarApp, actualizadorDisponible } from "../lib/actualizador.svelte.js";
-  import { enTauri } from "../lib/ajustes.svelte.js";
+  import { enTauri, esWindows, plataforma } from "../lib/ajustes.svelte.js";
 
   const abrirWeb = async (cual) => {
     if (!enTauri) return;
@@ -39,7 +39,7 @@
   // Abrir al iniciar Windows: lo que diga el registro, no un ajuste guardado
   // (se puede apagar desde el Administrador de tareas).
   let inicioWin = $state(false);
-  if (enTauri) {
+  if (enTauri && esWindows) {
     import("@tauri-apps/api/core").then(({ invoke }) => invoke("inicio_windows").then((v) => (inicioWin = v)).catch(() => {}));
   }
   async function ponerInicio(v) {
@@ -54,7 +54,7 @@
   }
 
   let nRespaldo = $state(0);
-  respaldadas().then((n) => (nRespaldo = n)).catch(() => {});
+  if (esWindows) respaldadas().then((n) => (nRespaldo = n)).catch(() => {});
 
   function desbloquear(v) {
     ajustes.desbloqueadas = v;
@@ -71,9 +71,11 @@
   const filas = $derived([
     { etiqueta: t("aj.tema"), pista: t("aj.temaHint"), valor: ajustes.tema, elegir: ponerTema, opciones: [[null, t("aj.temaSistema")], ["light", t("aj.claro")], ["dark", t("aj.oscuro")]] },
     { etiqueta: t("aj.abrir"), pista: t("aj.abrirHint"), valor: ajustes.alAbrir, elegir: (v) => (ajustes.alAbrir = v), opciones: [["instaladas", t("sec.instaladas")], ["favoritas", t("sec.favoritas")], ...(ajustes.carpetaPrincipal ? [["carpeta", t("mainFolder")]] : [])] },
+    ...(esWindows ? [
     { etiqueta: t("aj.cerrar"), pista: t("aj.cerrarHint"), valor: ajustes.alCerrar, elegir: (v) => (ajustes.alCerrar = v), opciones: [["bandeja", t("aj.bandeja")], ["salir", t("aj.salir")]] },
     { etiqueta: t("aj.inicio"), pista: t("aj.inicioHint"), valor: inicioWin, elegir: ponerInicio, opciones: [[true, t("aj.si")], [false, t("aj.no")]] },
     { etiqueta: t("aj.sistema"), pista: t("aj.sistemaHint"), valor: ajustes.desbloqueadas, elegir: desbloquear, opciones: [[false, t("aj.bloqueadas")], [true, t("aj.desbloquear")]] },
+    ] : []),
     { etiqueta: t("aj.ver"), pista: t("aj.verHint"), valor: ajustes.verBloqueadas, elegir: (v) => (ajustes.verBloqueadas = v), opciones: [[false, t("aj.ocultas")], [true, t("aj.visibles")]] },
     ...(actualizadorDisponible ? [{ etiqueta: t("aj.buscarAct"), pista: t("aj.buscarActHint"), valor: ajustes.buscarActualizaciones, elegir: (v) => (ajustes.buscarActualizaciones = v), opciones: [[true, t("aj.si")], [false, t("aj.no")]] }] : []),
     { etiqueta: t("aj.idioma"), pista: "", valor: ajustes.idioma, elegir: ponerIdioma, opciones: [["pt-BR", "Português (Brasil)"], ["en", "English"], ["es", "Español"]] },
@@ -229,7 +231,7 @@
         <div class="acerca">
           <div class="nombre">
             <Marca ancho={158} />
-            <span class="ver">{t("version", { v: version })}</span>
+            <span class="ver">{esWindows ? t("version", { v: version }) : version + " · " + (plataforma === "macos" ? "macOS" : "Ubuntu")}</span>
           </div>
         </div>
         <p class="tagline">{t("tagline")}</p>

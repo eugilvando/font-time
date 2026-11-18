@@ -2,6 +2,7 @@
 
 fn main() {
     // La copia con permisos de administrador (fuentes del sistema) no abre ventana.
+    #[cfg(windows)]
     if let Some(codigo) = tunafonts_lib::modo_elevado() {
         std::process::exit(codigo);
     }

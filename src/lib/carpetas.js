@@ -1,7 +1,7 @@
-// Windows conserva las mayúsculas al mostrar rutas, pero compara sin distinguirlas.
-const limpiar = (ruta) => ruta.replaceAll("/", "\\").replace(/\\+$/, "");
-const clave = (ruta) => limpiar(ruta).toLowerCase();
-export const dentro = (ruta, carpeta) => clave(ruta).startsWith(clave(carpeta) + "\\");
+const separador = (ruta) => ruta.startsWith("/") ? "/" : "\\";
+const limpiar = (ruta) => separador(ruta) === "/" ? ruta.replace(/\/+$/, "") : ruta.replaceAll("/", "\\").replace(/\\+$/, "");
+const clave = (ruta) => separador(ruta) === "/" ? limpiar(ruta) : limpiar(ruta).toLowerCase();
+export const dentro = (ruta, carpeta) => clave(ruta).startsWith(clave(carpeta) + separador(carpeta));
 export const enCarpeta = (familia, carpeta) => familia.archivos.some((ruta) => dentro(ruta, carpeta));
 
 export function arbolCarpetas(raices, directorios, familias) {
@@ -10,8 +10,9 @@ export function arbolCarpetas(raices, directorios, familias) {
     return { ruta, nombre, hijos: [], cuenta: 0, activas: 0 };
   }
   return raices.map(({ ruta }) => {
+    const sep = separador(ruta);
     const base = limpiar(ruta);
-    const raiz = nodo(ruta, base.split("\\").pop() || ruta);
+    const raiz = nodo(ruta, base.split(sep).pop() || ruta);
     const indice = new Map([[clave(ruta), raiz]]);
     function recorrer(directorio, visitados) {
       const nombreCompleto = limpiar(directorio);
@@ -19,8 +20,8 @@ export function arbolCarpetas(raices, directorios, familias) {
       let padre = raiz;
       let prefijo = base;
       visitados?.add(padre);
-      for (const nombre of nombreCompleto.slice(base.length).split("\\").filter(Boolean)) {
-        prefijo += "\\" + nombre;
+      for (const nombre of nombreCompleto.slice(base.length).split(sep).filter(Boolean)) {
+        prefijo += sep + nombre;
         const k = clave(prefijo);
         let hijo = indice.get(k);
         if (!hijo) {
@@ -38,7 +39,7 @@ export function arbolCarpetas(raices, directorios, familias) {
       for (const archivo of familia.archivos) {
         if (!dentro(archivo, ruta)) continue;
         const p = limpiar(archivo);
-        recorrer(p.slice(0, p.lastIndexOf("\\")), visitados);
+        recorrer(p.slice(0, p.lastIndexOf(sep)), visitados);
       }
       for (const carpeta of visitados) {
         carpeta.cuenta++;

@@ -21,7 +21,7 @@
   import Especimen from "./vistas/Especimen.svelte";
   import Comparar from "./vistas/Comparar.svelte";
 
-  import { ajustes, enTauri, temaActual } from "./lib/ajustes.svelte.js";
+  import { ajustes, esWindows, enTauri, temaActual } from "./lib/ajustes.svelte.js";
   import { arbolCarpetas, dentro, enCarpeta } from "./lib/carpetas.js";
   import { t } from "./lib/i18n.svelte.js";
   import { avisar } from "./lib/avisos.svelte.js";
@@ -353,7 +353,7 @@
   // ---- bandeja ----
   // El menú de la bandeja enseña cómo están las fuentes, con el tema y el idioma de la app.
   $effect(() => {
-    if (!enTauri) return;
+    if (!enTauri || !esWindows) return;
     const n = carpetas.length;
     const estado = n === 1 ? t("menu.carpeta") : n ? t("menu.carpetas", { n }) : t("menu.activas", { a: activasN, n: instaladas.length });
     const datos = { estado, carpetas: n, tema: temaActual(), idioma: ajustes.idioma };
@@ -545,7 +545,7 @@
           />
         </div>
       {/if}
-      <Controles />
+      {#if esWindows}<Controles />{/if}
     </header>
 
     <div class="titulo">
