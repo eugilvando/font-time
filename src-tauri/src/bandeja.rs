@@ -52,7 +52,7 @@ pub fn crear(app: &AppHandle, tema: &str, idioma: &str) -> tauri::Result<()> {
 
     let inicio = json!({ "ajustes": { "tema": tema }, "menu": true });
     let menu = WebviewWindowBuilder::new(app, "menu", WebviewUrl::default())
-        .title("tuna-fonts")
+        .title("Font Time")
         .inner_size(ANCHO, ALTO)
         .decorations(false)
         .transparent(true)
@@ -75,7 +75,7 @@ pub fn crear(app: &AppHandle, tema: &str, idioma: &str) -> tauri::Result<()> {
         }
     });
 
-    let mut icono = TrayIconBuilder::with_id("tuna-fonts").tooltip("tuna-fonts").on_tray_icon_event(|icono, ev| {
+    let mut icono = TrayIconBuilder::with_id("font-time").tooltip("Font Time").on_tray_icon_event(|icono, ev| {
         if let TrayIconEvent::Click { button, button_state: MouseButtonState::Up, position, .. } = ev {
             match button {
                 MouseButton::Left => mostrar(icono.app_handle()),

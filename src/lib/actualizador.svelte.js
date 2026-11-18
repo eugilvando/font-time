@@ -9,10 +9,12 @@ import { ajustes, enTauri } from "./ajustes.svelte.js";
 // estado: idle | buscando | nada | available | downloading | installing | error
 export const nueva = $state({ estado: "idle", version: "", bajado: 0, total: 0, error: "", portable: false, cerrado: false });
 
+export const actualizadorDisponible = Boolean(window.__TUNA__?.actualizador);
+
 let pendiente = null;
 
 export async function buscarApp(aMano = false) {
-  if (!enTauri) return;
+  if (!enTauri || !actualizadorDisponible) return;
   const { invoke } = await import("@tauri-apps/api/core");
   const { check } = await import("@tauri-apps/plugin-updater");
   if (aMano) nueva.estado = "buscando";
@@ -58,7 +60,7 @@ export async function instalarApp() {
 }
 
 export function iniciarActualizador() {
-  if (enTauri && ajustes.buscarActualizaciones) {
+  if (actualizadorDisponible && enTauri && ajustes.buscarActualizaciones) {
     // Un poco después de abrir, para no competir con la lista de fuentes.
     setTimeout(() => buscarApp(false), 2500);
   }

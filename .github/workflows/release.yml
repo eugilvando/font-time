@@ -90,23 +90,23 @@ jobs:
         shell: pwsh
         run: |
           $v = $env:VERSION
-          $nombre = "tuna-fonts_${v}_x64-setup.exe"
-          $setup = Get-Item "src-tauri/target/release/bundle/nsis/$nombre"
+          $nombre = "font-time_${v}_x64-setup.exe"
+          $setup = Get-Item "src-tauri/target/release/bundle/nsis/Font Time_${v}_x64-setup.exe"
 
           # Portable: el .exe con las licencias al lado, como el instalador.
-          $dir = New-Item -ItemType Directory -Force "salida/portable/tuna-fonts"
-          Copy-Item src-tauri/target/release/tuna-fonts.exe $dir
+          $dir = New-Item -ItemType Directory -Force "salida/portable/font-time"
+          Copy-Item src-tauri/target/release/font-time.exe $dir
           Copy-Item LICENSE "$dir/LICENSE.txt"
           Copy-Item THIRD-PARTY-NOTICES.md $dir
           Copy-Item licenses "$dir/licenses" -Recurse
-          Compress-Archive "$dir/*" "salida/tuna-fonts_${v}_x64-portable.zip"
-          Copy-Item $setup salida/
+          Compress-Archive "$dir/*" "salida/font-time_${v}_x64-portable.zip"
+          Copy-Item $setup "salida/$nombre"
 
           # El actualizador lee latest.json de la última release publicada y solo
           # instala el paquete si su firma cuadra con la clave pública de la app.
           if ($env:FIRMADO -eq "1") {
             $firma = (Get-Content "$($setup.FullName).sig" -Raw).Trim()
-            Copy-Item "$($setup.FullName).sig" salida/
+            Copy-Item "$($setup.FullName).sig" "salida/$nombre.sig"
             $url = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/v$v/$nombre"
             $plataforma = @{ signature = $firma; url = $url }
             $json = [ordered]@{
@@ -130,7 +130,7 @@ jobs:
         if: github.ref_type != 'tag'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: tuna-fonts-${{ env.VERSION }}-${{ github.sha }}
+          name: font-time-${{ env.VERSION }}-${{ github.sha }}
           path: salida/*.*
           if-no-files-found: error
 
@@ -143,4 +143,4 @@ jobs:
           $cuerpo += "`n`n### SHA-256`n$tres`n" + ((Get-Content salida/SHA256SUMS.txt) -join "`n") + "`n$tres`n"
           $cuerpo | Set-Content notas.md -Encoding utf8
           $archivos = @(Get-ChildItem salida -File | ForEach-Object FullName)
-          gh release create $env:TAG --draft --verify-tag --title "tuna-fonts $env:TAG" --notes-file notas.md @archivos
+          gh release create $env:TAG --draft --verify-tag --title "Font Time $env:TAG" --notes-file notas.md @archivos

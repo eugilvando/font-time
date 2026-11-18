@@ -384,10 +384,10 @@ fn es_portable() -> bool {
 #[tauri::command]
 fn abrir_web(cual: String) -> Result<(), String> {
     let url = match cual.as_str() {
-        "release" => "https://github.com/atunfrito/tuna-fonts/releases/latest",
-        "fallo" => "https://github.com/atunfrito/tuna-fonts/issues/new/choose",
+        "release" => "https://github.com/eugilvando/font-time/releases/latest",
+        "fallo" => "https://github.com/eugilvando/font-time/issues/new/choose",
         "tuna-dlp" => "https://github.com/atunfrito/tuna-dlp",
-        "repo" => "https://github.com/atunfrito/tuna-fonts",
+        "repo" => "https://github.com/eugilvando/font-time",
         // Solo el recuadro para donar (el que usa el botón flotante de Ko-fi), sin el resto de la página.
         "kofi" => "https://ko-fi.com/atunfrito?hidefeed=true&widget=true&embed=true",
         _ => return Err(format!("dirección desconocida: {cual}")),
@@ -562,10 +562,12 @@ pub fn run() {
                 "ajustes": ajustes,
                 "version": app.package_info().version.to_string(),
                 "idiomaSistema": idioma_windows(),
+                "actualizador": app.config().plugins.0.get("updater")
+                    .and_then(|cfg| cfg["pubkey"].as_str()).is_some_and(|key| !key.is_empty()),
             });
 
             WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
-                .title("tuna-fonts")
+                .title("Font Time")
                 .visible(!oculta)
                 .inner_size(1280.0, 820.0)
                 .min_inner_size(960.0, 600.0)
@@ -579,7 +581,7 @@ pub fn run() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("error al arrancar tuna-fonts");
+        .expect("error al arrancar Font Time");
 
     app.run(|app, ev| {
         // Al cerrar: las de carpetas vigiladas solo estaban mientras la app estuviera abierta.

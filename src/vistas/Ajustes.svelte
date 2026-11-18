@@ -1,4 +1,5 @@
 <script>
+  import Marca from "../componentes/Marca.svelte";
   // Modal de ajustes con tres pestañas: ajustes · atajos · acerca de.
   import { SlidersHorizontal, Keyboard, Info, X, ArrowUpRight } from "@lucide/svelte";
   import Segmentado from "../componentes/Segmentado.svelte";
@@ -9,7 +10,7 @@
   import { avisar } from "../lib/avisos.svelte.js";
   import { respaldadas, restaurarSistema, fuentes } from "../lib/fuentes.svelte.js";
   import { comboDe } from "../lib/atajos.js";
-  import { nueva, buscarApp } from "../lib/actualizador.svelte.js";
+  import { nueva, buscarApp, actualizadorDisponible } from "../lib/actualizador.svelte.js";
   import { enTauri } from "../lib/ajustes.svelte.js";
 
   const abrirWeb = async (cual) => {
@@ -77,7 +78,7 @@
     { etiqueta: t("aj.inicio"), pista: t("aj.inicioHint"), valor: inicioWin, elegir: ponerInicio, opciones: [[true, t("aj.si")], [false, t("aj.no")]] },
     { etiqueta: t("aj.sistema"), pista: t("aj.sistemaHint"), valor: ajustes.desbloqueadas, elegir: desbloquear, opciones: [[false, t("aj.bloqueadas")], [true, t("aj.desbloquear")]] },
     { etiqueta: t("aj.ver"), pista: t("aj.verHint"), valor: ajustes.verBloqueadas, elegir: (v) => (ajustes.verBloqueadas = v), opciones: [[false, t("aj.ocultas")], [true, t("aj.visibles")]] },
-    { etiqueta: t("aj.buscarAct"), pista: t("aj.buscarActHint"), valor: ajustes.buscarActualizaciones, elegir: (v) => (ajustes.buscarActualizaciones = v), opciones: [[true, t("aj.si")], [false, t("aj.no")]] },
+    ...(actualizadorDisponible ? [{ etiqueta: t("aj.buscarAct"), pista: t("aj.buscarActHint"), valor: ajustes.buscarActualizaciones, elegir: (v) => (ajustes.buscarActualizaciones = v), opciones: [[true, t("aj.si")], [false, t("aj.no")]] }] : []),
     { etiqueta: t("aj.idioma"), pista: "", valor: ajustes.idioma, elegir: ponerIdioma, opciones: [["es", "español"], ["en", "english"]] },
   ]);
 
@@ -129,7 +130,7 @@
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div class="modal" role="dialog" aria-modal="true" aria-label={t("settings")} tabindex="-1" onclick={(e) => e.stopPropagation()}>
     <div class="lado">
-      <span class="marca">tuna-fonts<i>.</i></span>
+      <div class="marca-lado"><Marca ancho={103} /></div>
       {#each PESTANAS as p (p.id)}
         <button type="button" class="tab" class:activa={pestana === p.id} onclick={() => ((pestana = p.id), (grabando = null))}>
           <p.icono size={14} strokeWidth={1.9} />{p.texto()}
@@ -157,17 +158,19 @@
             <Segmentado etiqueta={f.etiqueta} opciones={f.opciones.map(([valor, etiqueta]) => ({ valor, etiqueta }))} valor={f.valor} onelegir={f.elegir} />
           </div>
         {/each}
-        <div class="fila">
-          <span class="txt">
-            <span class="eti">{t("aj.act")}</span>
-            <span class="pista">{estadoAct}</span>
-          </span>
-          {#if nueva.estado === "available" && !nueva.cerrado}
-            <button type="button" class="boton" onclick={oncerrar}>{t("act.verAviso")}</button>
-          {:else}
-            <button type="button" class="boton" disabled={nueva.estado === "buscando" || !enTauri} onclick={() => buscarApp(true)}>{t("act.buscarAhora")}</button>
-          {/if}
-        </div>
+        {#if actualizadorDisponible}
+          <div class="fila">
+            <span class="txt">
+              <span class="eti">{t("aj.act")}</span>
+              <span class="pista">{estadoAct}</span>
+            </span>
+            {#if nueva.estado === "available" && !nueva.cerrado}
+              <button type="button" class="boton" onclick={oncerrar}>{t("act.verAviso")}</button>
+            {:else}
+              <button type="button" class="boton" disabled={nueva.estado === "buscando" || !enTauri} onclick={() => buscarApp(true)}>{t("act.buscarAhora")}</button>
+            {/if}
+          </div>
+        {/if}
         {#if nRespaldo > 0}
           <div class="fila">
             <span class="txt">
@@ -204,9 +207,8 @@
         {/if}
       {:else}
         <div class="acerca">
-          <img src="/icon.svg" width="64" height="64" alt="" draggable="false" />
           <div class="nombre">
-            <span class="marca grande">tuna-fonts<i>.</i></span>
+            <Marca ancho={158} />
             <span class="ver">{t("version", { v: version })}</span>
           </div>
         </div>
@@ -245,8 +247,8 @@
           </div>
         </div>
         <div class="firma">
-          <span class="marca cueva">{t("madeIn")}</span>
-          <span class="copy">© 2026 atunfrito · MIT</span>
+          <span>Font Time · eugilvando</span>
+          <span class="copy">Tuna Fonts © 2026 atunfrito · MIT</span>
         </div>
       {/if}
       </div>
@@ -270,7 +272,7 @@
     outline: none;
   }
   .lado { background: var(--side); border-right: 1px solid var(--line); padding: 16px 10px; display: flex; flex-direction: column; gap: 2px; }
-  .lado .marca { padding: 0 10px 10px; font-size: 20px; }
+  .marca-lado { padding: 0 10px 10px; }
   .tab {
     display: flex;
     align-items: center;
@@ -351,9 +353,8 @@
     justify-content: center;
   }
   .acerca { display: flex; align-items: center; gap: 16px; }
-  .acerca img { display: block; }
+  .acerca :global(img) { display: block; }
   .nombre { display: flex; flex-direction: column; gap: 4px; }
-  .grande { font-size: 32px; }
   .ver { font: 500 12px var(--mono); color: var(--ink2); }
   .tagline { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ink2); }
   .numeros { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
@@ -399,6 +400,5 @@
   .link { display: inline-flex; align-items: center; gap: 3px; padding: 0; border: 0; background: transparent; color: var(--ink); font: 600 12.5px var(--sans); text-decoration: underline; text-decoration-color: var(--line2); text-underline-offset: 3px; }
   .link:hover { text-decoration-color: var(--ink); }
   .firma { flex: none; margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between; }
-  .cueva { font-size: 18px; color: var(--red); }
   .copy { font: 400 10.5px var(--mono); color: var(--ink3); }
 </style>

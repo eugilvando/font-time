@@ -1,4 +1,5 @@
 <script>
+  import Marca from "./componentes/Marca.svelte";
   import { onMount } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
   import { Search, List, LayoutGrid, Folder, FolderOpen, Trash2, X, Heart, WifiOff, Layers, Type, LoaderCircle } from "@lucide/svelte";
@@ -681,8 +682,7 @@
 
   {#if splash}
     <div class="splash">
-      <img src="/icon.svg" width="140" height="140" alt="" draggable="false" />
-      <span class="marca">tuna-fonts<i>.</i></span>
+      <Marca ancho={245} />
     </div>
   {/if}
 </div>
@@ -775,6 +775,4 @@
   }
 
   .splash { position: absolute; inset: 0; z-index: 40; background: var(--win); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; }
-  .splash img { display: block; animation: tf-key 0.55s cubic-bezier(0.3, 1.2, 0.5, 1) both; filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.25)); }
-  .splash .marca { font-size: 34px; animation: tf-fade 0.3s ease-out 0.45s both; }
 </style>

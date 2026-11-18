@@ -1,4 +1,5 @@
 <script>
+  import Marca from "./Marca.svelte";
   import { SlidersHorizontal, Sun, Moon, Plus } from "@lucide/svelte";
   import Segmentado from "./Segmentado.svelte";
   import Actualizacion from "./Actualizacion.svelte";
@@ -78,8 +79,7 @@
 
 <aside>
   <div class="cabeza" data-tauri-drag-region>
-    <img src="/icon.svg" width="24" height="24" alt="" draggable="false" />
-    <span class="marca" data-tauri-drag-region>tuna-fonts<i>.</i></span>
+    <Marca ancho={116} />
   </div>
 
   <nav>
@@ -184,8 +184,6 @@
     transition: background-color 0.3s;
   }
   .cabeza { flex: none; height: 52px; display: flex; align-items: center; gap: 8px; padding: 0 8px; }
-  .cabeza img { display: block; flex: none; }
-  .cabeza .marca { display: flex; align-items: center; height: 24px; font-size: 18px; transform: translateY(1px); }
   nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin: 0 -6px; padding: 0 6px 6px; }
   .grupo { display: flex; flex-direction: column; gap: 1px; margin-top: 14px; }
   .grupo:first-child { margin-top: 2px; }

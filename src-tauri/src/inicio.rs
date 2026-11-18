@@ -1,8 +1,8 @@
-//! Abrir tuna-fonts al iniciar Windows, escondida en la bandeja: así las
+//! Abrir Font Time al iniciar Windows, escondida en la bandeja: así las
 //! fuentes de las carpetas vigiladas están disponibles desde el principio.
 //!
 //! - Va en HKCU\...\Run (solo este usuario, sin permisos de administrador) con
-//!   el nombre «tuna-fonts», que es justo el valor que borra el desinstalador.
+//!   el nombre «Font Time», que es justo el valor que borra el desinstalador.
 //! - Lo que manda es el registro, no un ajuste guardado: si alguien lo apaga en
 //!   el Administrador de tareas (Aplicaciones de arranque) o mueve la portable,
 //!   la app lo ve como apagado en vez de decir algo que no es verdad.
@@ -23,7 +23,7 @@ const RUN: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
 /// Donde el Administrador de tareas apunta las que se han desactivado.
 const APROBADO: &str = r"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
 /// El mismo nombre que borra el desinstalador de Tauri (PRODUCTNAME).
-const NOMBRE: &str = "tuna-fonts";
+const NOMBRE: &str = "Font Time";
 pub const OCULTA: &str = "--oculta";
 const MARCA: &str = "mostrar-al-abrir";
 

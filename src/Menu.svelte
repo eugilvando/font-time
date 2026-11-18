@@ -1,4 +1,5 @@
 <script>
+  import Marca from "./componentes/Marca.svelte";
   // El menú del clic derecho en la bandeja (ver src-tauri/src/bandeja.rs).
   // No importa ajustes ni i18n: esos guardan ajustes al cargarse y pisarían los
   // de la ventana principal. Los textos y el tema los manda ella.
@@ -48,10 +49,10 @@
   {#key abierto}
     <div class="menu" role="menu">
       <div class="cabeza">
-        <img src="/icon.svg" width="26" height="26" alt="" draggable="false" />
+
         <div class="textos">
-          <span class="marca">tuna-fonts<i>.</i></span>
-          <span class="estado num"><span class="punto" class:vivo={e.carpetas > 0}></span>{e.estado || "tuna-fonts"}</span>
+          <Marca ancho={96} />
+          <span class="estado num"><span class="punto" class:vivo={e.carpetas > 0}></span>{e.estado || "Font Time"}</span>
         </div>
       </div>
       <div class="sep"></div>
@@ -87,9 +88,7 @@
 
   :global([data-theme="dark"]) .menu { border-color: #3a3835; }
   .cabeza { display: flex; align-items: center; gap: 10px; padding: 8px 9px 7px; }
-  .cabeza img { display: block; flex: none; }
   .textos { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-  .marca { font-size: 17px; }
   .estado { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .punto { width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--off); }
   .punto.vivo { background: var(--ok); }

@@ -1,6 +1,6 @@
 # winget
 
-Manifests for [winget-pkgs](https://github.com/microsoft/winget-pkgs), package `AtunFrito.TunaFonts`.
+Manifests for [winget-pkgs](https://github.com/microsoft/winget-pkgs), package `eugilvando.FontTime`.
 
 ## First version (by hand, once)
 
@@ -8,17 +8,17 @@ After the release is **published** on GitHub:
 
 ```powershell
 ./winget/preparar.ps1 0.2.0
-winget validate --manifest winget/manifests/a/AtunFrito/TunaFonts/0.2.0
-winget install --manifest winget/manifests/a/AtunFrito/TunaFonts/0.2.0   # optional: try it
+winget validate --manifest winget/manifests/e/eugilvando/FontTime/0.2.0
+winget install --manifest winget/manifests/e/eugilvando/FontTime/0.2.0   # optional: try it
 ```
 
 Then submit it, either with [wingetcreate](https://github.com/microsoft/winget-create):
 
 ```powershell
-wingetcreate submit winget/manifests/a/AtunFrito/TunaFonts/0.2.0
+wingetcreate submit winget/manifests/e/eugilvando/FontTime/0.2.0
 ```
 
-or by opening a pull request to `microsoft/winget-pkgs` that adds that folder at `manifests/a/AtunFrito/TunaFonts/0.2.0/`. A Microsoft moderator reviews it; it usually takes a few days.
+or by opening a pull request to `microsoft/winget-pkgs` that adds that folder at `manifests/e/eugilvando/FontTime/0.2.0/`. A Microsoft moderator reviews it; it usually takes a few days.
 
 `winget/manifests/` is generated and not committed.
 

@@ -11,7 +11,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: tuna-fonts version
+      label: Font Time version
       description: shown at the bottom of the sidebar, e.g. 0.2.0
       placeholder: "0.2.0"
     validations:

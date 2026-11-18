@@ -1,9 +1,9 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.locale.1.10.0.schema.json
-PackageIdentifier: AtunFrito.TunaFonts
+PackageIdentifier: eugilvando.FontTime
 PackageVersion: {VERSION}
 PackageLocale: es-ES
-Publisher: AtunFrito
-PackageName: tuna-fonts
+Publisher: eugilvando
+PackageName: Font Time
 License: MIT
 ShortDescription: Gestor de fuentes para Windows. En local, sin cuentas y sin anuncios.
 Description: |-

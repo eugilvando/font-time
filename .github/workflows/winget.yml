@@ -1,7 +1,7 @@
 # Al publicar una release (no los borradores): manda la versión nueva a
 # winget-pkgs con komac, que abre la pull request desde tu fork.
 #
-# Solo sirve a partir de que tuna-fonts ya esté en winget: la primera versión
+# Solo sirve a partir de que font-time ya esté en winget: la primera versión
 # se envía a mano (ver winget/README.md).
 #
 # Secret: WINGET_TOKEN, un token clásico con el permiso public_repo, de la
@@ -39,6 +39,6 @@ jobs:
           $exe = "komac.exe"
           Invoke-WebRequest "https://github.com/russellbanks/Komac/releases/download/v$env:KOMAC/komac-$env:KOMAC-x86_64-pc-windows-msvc.exe" -OutFile $exe
           if ((Get-FileHash $exe -Algorithm SHA256).Hash.ToLower() -ne $env:KOMAC_SHA256) { throw "el SHA-256 de komac no cuadra" }
-          $url = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/v$v/tuna-fonts_${v}_x64-setup.exe"
-          ./komac.exe update AtunFrito.TunaFonts --version $v --urls $url --release-notes-url "https://github.com/$env:GITHUB_REPOSITORY/releases/tag/v$v" --submit --token $env:WINGET_TOKEN
+          $url = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/v$v/font-time_${v}_x64-setup.exe"
+          ./komac.exe update eugilvando.FontTime --version $v --urls $url --release-notes-url "https://github.com/$env:GITHUB_REPOSITORY/releases/tag/v$v" --submit --token $env:WINGET_TOKEN
           if ($LASTEXITCODE) { exit $LASTEXITCODE }

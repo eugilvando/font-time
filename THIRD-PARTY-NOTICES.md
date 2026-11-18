@@ -1,6 +1,6 @@
 # Third-party notices
 
-tuna-fonts is MIT licensed (see `LICENSE`). It ships with:
+Font Time is based on tuna-fonts by AtunFrito and is MIT licensed (see `LICENSE`). It ships with:
 
 | What | License | Where |
 | --- | --- | --- |

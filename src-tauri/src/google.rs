@@ -18,7 +18,7 @@ const VIGENCIA: Duration = Duration::from_secs(7 * 24 * 3600);
 fn cliente() -> Result<reqwest::Client, String> {
     let _ = rustls::crypto::ring::default_provider().install_default();
     reqwest::Client::builder()
-        .user_agent("tuna-fonts")
+        .user_agent("font-time")
         .connect_timeout(Duration::from_secs(10))
         .redirect(reqwest::redirect::Policy::custom(|intento| {
             // Solo dentro de Google Fonts.
