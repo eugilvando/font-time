@@ -196,3 +196,25 @@ pub fn familias_visibles() -> std::collections::HashSet<String> {
     }
     familias
 }
+
+/// La barra de tareas pide ICON_BIG y la ventana pide ICON_SMALL. Ambos salen
+/// del grupo de iconos del ejecutable generado por tauri-build (IDI_APPLICATION).
+pub fn poner_iconos_ventana(hwnd: windows_sys::Win32::Foundation::HWND) -> std::io::Result<()> {
+    use windows_sys::Win32::{
+        System::LibraryLoader::GetModuleHandleW,
+        UI::WindowsAndMessaging::{
+            GetSystemMetrics, LoadImageW, SendMessageW, ICON_BIG, ICON_SMALL, IDI_APPLICATION,
+            IMAGE_ICON, LR_SHARED, SM_CXICON, SM_CXSMICON, SM_CYICON, SM_CYSMICON, WM_SETICON,
+        },
+    };
+    unsafe {
+        let modulo = GetModuleHandleW(std::ptr::null());
+        if modulo.is_null() { return Err(std::io::Error::last_os_error()); }
+        for (tipo, ancho, alto) in [(ICON_SMALL, SM_CXSMICON, SM_CYSMICON), (ICON_BIG, SM_CXICON, SM_CYICON)] {
+            let icono = LoadImageW(modulo, IDI_APPLICATION, IMAGE_ICON, GetSystemMetrics(ancho), GetSystemMetrics(alto), LR_SHARED);
+            if icono.is_null() { return Err(std::io::Error::last_os_error()); }
+            SendMessageW(hwnd, WM_SETICON, tipo as usize, icono as isize);
+        }
+    }
+    Ok(())
+}

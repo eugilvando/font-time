@@ -60,7 +60,7 @@
   .fila:hover { background: var(--hov); }
   .fila.sel, .fila.sel:hover { background: var(--sel); }
   .txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .nombre { font-size: 10.5px; color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nombre { font-size: 10.5px; color: var(--fuente-inactiva); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .roto { color: var(--red); }
   /* Recorta solo a lo ancho (para los «…»): por arriba y por abajo los adornos de las caligráficas pueden salirse. */
   .muestra {
@@ -74,8 +74,7 @@
     color: var(--ink);
     transition: color 0.25s;
   }
-  .muestra.off { color: var(--off); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9); }
-  :global([data-theme="dark"]) .muestra.off { text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); }
+  .muestra.off { color: var(--fuente-inactiva); }
   .ico {
     width: 32px;
     height: 32px;

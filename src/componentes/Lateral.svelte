@@ -241,7 +241,7 @@
   .item:hover { background: var(--hov); }
   .item.activo { background: var(--chip); color: var(--ink); font-weight: 600; }
   .item.diana { box-shadow: inset 0 0 0 1.5px var(--red); }
-  .punto { width: 10px; height: 10px; flex: none; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--line2); }
+  .punto { width: 10px; height: 10px; flex: none; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--fuente-inactiva); }
   .punto.oculto { visibility: hidden; }
   .punto.verde { background: var(--ok); box-shadow: none; }
   .punto.parcial { box-shadow: inset 0 0 0 1.5px var(--ok); }

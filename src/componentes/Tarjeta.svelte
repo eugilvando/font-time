@@ -62,7 +62,7 @@
     white-space: nowrap;
   }
   .aa span { display: block; line-height: 1; }
-  .aa.off { color: var(--off); }
+  .aa.off { color: var(--fuente-inactiva); }
   .pie { display: flex; align-items: center; gap: 8px; }
   .nombre { flex: 1; min-width: 0; font-size: 12px; font-weight: 500; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .corazon {

@@ -43,13 +43,7 @@ const POR_DEFECTO = {
 export const ajustes = $state({ ...POR_DEFECTO, ...inicio.ajustes });
 ajustes.atajos = { ...ATAJOS, ...(ajustes.atajos || {}) };
 
-// La 0.1.0 tenía el español fijo y lo guardaba en ajustes.json aunque nadie lo
-// eligiera, así que quien venía de ella con Windows en otro idioma la seguía
-// viendo en español. Si el idioma nunca se ha elegido a mano y es ese «es»
-// heredado, se vuelve al de Windows (una vez: desde aquí ya cuenta como elegido).
-if (!("idiomaElegido" in (inicio.ajustes ?? {}))) {
-  if (ajustes.idioma === "es" && inicio.idiomaSistema && inicio.idiomaSistema !== "es") ajustes.idioma = inicio.idiomaSistema;
-}
+if (!ajustes.idiomaElegido && inicio.idiomaSistema) ajustes.idioma = inicio.idiomaSistema;
 
 export function ponerIdioma(idioma) {
   ajustes.idioma = idioma;

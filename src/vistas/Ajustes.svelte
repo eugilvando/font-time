@@ -3,8 +3,6 @@
   // Modal de ajustes con tres pestañas: ajustes · atajos · acerca de.
   import { SlidersHorizontal, Keyboard, Info, X, ArrowUpRight } from "@lucide/svelte";
   import Segmentado from "../componentes/Segmentado.svelte";
-  // La taza oficial de Ko-fi va dentro del código (Vite la incrusta como data:), sin pedir nada a nadie.
-  import tazaKofi from "../assets/kofi.svg?inline";
   import { ajustes, ponerTema, ponerIdioma, version, ATAJOS } from "../lib/ajustes.svelte.js";
   import { t } from "../lib/i18n.svelte.js";
   import { avisar } from "../lib/avisos.svelte.js";
@@ -78,7 +76,7 @@
     { etiqueta: t("aj.sistema"), pista: t("aj.sistemaHint"), valor: ajustes.desbloqueadas, elegir: desbloquear, opciones: [[false, t("aj.bloqueadas")], [true, t("aj.desbloquear")]] },
     { etiqueta: t("aj.ver"), pista: t("aj.verHint"), valor: ajustes.verBloqueadas, elegir: (v) => (ajustes.verBloqueadas = v), opciones: [[false, t("aj.ocultas")], [true, t("aj.visibles")]] },
     ...(actualizadorDisponible ? [{ etiqueta: t("aj.buscarAct"), pista: t("aj.buscarActHint"), valor: ajustes.buscarActualizaciones, elegir: (v) => (ajustes.buscarActualizaciones = v), opciones: [[true, t("aj.si")], [false, t("aj.no")]] }] : []),
-    { etiqueta: t("aj.idioma"), pista: "", valor: ajustes.idioma, elegir: ponerIdioma, opciones: [["es", "español"], ["en", "english"]] },
+    { etiqueta: t("aj.idioma"), pista: "", valor: ajustes.idioma, elegir: ponerIdioma, opciones: [["pt-BR", "Português (Brasil)"], ["en", "English"], ["es", "Español"]] },
   ]);
 
   // ---- atajos ----
@@ -119,7 +117,7 @@
     avisar("ok", t("ok.atajosRestaurados"), "");
   }
 
-  const novedades = $derived([t("nov.7"), t("nov.8"), t("nov.9"), t("nov.10")]);
+  const novedades = $derived([t("nov.contraste"), t("nov.idioma"), t("nov.icono")]);
 </script>
 
 <svelte:window onkeydowncapture={tecla} />
@@ -140,7 +138,7 @@
     <div class="cuerpo">
       <!-- Título y cerrar quedan fijos; solo se desplaza lo de debajo. -->
       <div class="cab">
-        <h2>{pestana === "ajustes" ? t("settings") : pestana === "atajos" ? t("shortcuts") : ""}</h2>
+        <h2>{pestana === "ajustes" ? t("settings") : pestana === "atajos" ? t("shortcuts") : t("about")}</h2>
         <button type="button" class="cerrar" title={t("close")} aria-label={t("close")} onclick={oncerrar}>
           <X size={13} strokeWidth={2} />
         </button>
@@ -246,22 +244,14 @@
             <div class="linea"><span class="punto"></span><span>{n}</span></div>
           {/each}
         </div>
-        <!-- Apoyo con Ko-fi: una tarjeta tranquila, sin avisos ni ventanas que interrumpan.
-             El botón es el oficial de Ko-fi (su taza y su letra), dibujado aquí: la app no carga nada de fuera. -->
-        <div class="apoyo">
-          <span class="apoyo-txt">
-            <b>{t("acerca.apoyar")}</b>
-            <span>{t("acerca.apoyarTexto")}</span>
-          </span>
-          <button type="button" class="kofi" onclick={() => abrirWeb("kofi")}>
-            <img class="taza" src={tazaKofi} width="27" height="22" alt="" draggable="false" />
-            {t("acerca.kofi")}
-          </button>
-        </div>
         <div class="enlaces">
           <div class="enlace">
-            <span class="l">{t("acerca.masTuna")}</span>
-            <button type="button" class="link" onclick={() => abrirWeb("tuna-dlp")}>tuna-dlp<ArrowUpRight size={12} strokeWidth={2} /></button>
+            <span>{t("acerca.proyecto")}</span>
+            <button type="button" class="link" onclick={() => abrirWeb("repo")}>GitHub<ArrowUpRight size={12} strokeWidth={2} /></button>
+          </div>
+          <div class="enlace">
+            <span>{t("aj.act")}</span>
+            <button type="button" class="link" onclick={() => abrirWeb("release")}>{t("acerca.versiones")}<ArrowUpRight size={12} strokeWidth={2} /></button>
           </div>
           <div class="enlace">
             <span class="l">{t("acerca.fallo")}</span>
@@ -270,7 +260,7 @@
         </div>
         <div class="firma">
           <span>Font Time · eugilvando</span>
-          <span class="copy">Tuna Fonts © 2026 atunfrito · MIT</span>
+          <span class="copy">{t("acerca.origen")}</span>
         </div>
       {/if}
       </div>
@@ -393,41 +383,10 @@
   .nov { display: flex; flex-direction: column; gap: 6px; }
   .linea { display: flex; gap: 9px; align-items: baseline; font-size: 12.5px; line-height: 1.45; }
   .punto { flex: none; width: 5px; height: 5px; border-radius: 50%; background: var(--red); transform: translateY(-2px); }
-  .apoyo {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 16px;
-    padding: 14px 14px 14px 16px;
-    border-radius: 12px;
-    background: var(--chip);
-  }
-  .apoyo-txt { display: flex; flex-direction: column; gap: 2px; font-size: 12px; line-height: 1.4; color: var(--ink2); }
-  .apoyo-txt b { font-size: 13px; font-weight: 600; color: var(--ink); }
-  /* El botón oficial de Ko-fi (oscuro; en el tema oscuro, el beige), dibujado
-     aquí con su taza y su letra: la app no carga nada de Ko-fi. */
-  .taza { display: block; flex: none; }
-  .kofi {
-    height: 40px;
-    padding: 0 18px 0 11px;
-    border: 1.5px solid #202020;
-    border-radius: 11px;
-    background: #202020;
-    color: #fff;
-    font: 600 14px "Poppins", var(--sans);
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    white-space: nowrap;
-    transition: transform 0.15s, opacity 0.15s;
-  }
-  .kofi:hover { opacity: 0.88; }
-  .kofi:active { transform: translateY(1px); }
-  :global([data-theme="dark"]) .kofi { background: #f2eee6; color: #202020; }
   .enlaces { display: flex; flex-direction: column; gap: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
   .enlace { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--ink2); }
   .link { display: inline-flex; align-items: center; gap: 3px; padding: 0; border: 0; background: transparent; color: var(--ink); font: 600 12.5px var(--sans); text-decoration: underline; text-decoration-color: var(--line2); text-underline-offset: 3px; }
   .link:hover { text-decoration-color: var(--ink); }
-  .firma { flex: none; margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between; }
+  .firma { flex: none; margin-top: auto; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; justify-content: space-between; }
   .copy { font: 400 10.5px var(--mono); color: var(--ink3); }
 </style>

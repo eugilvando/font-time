@@ -356,10 +356,7 @@ fn abrir_web(cual: String) -> Result<(), String> {
     let url = match cual.as_str() {
         "release" => "https://github.com/eugilvando/font-time/releases/latest",
         "fallo" => "https://github.com/eugilvando/font-time/issues/new/choose",
-        "tuna-dlp" => "https://github.com/atunfrito/tuna-dlp",
         "repo" => "https://github.com/eugilvando/font-time",
-        // Solo el recuadro para donar (el que usa el botón flotante de Ko-fi), sin el resto de la página.
-        "kofi" => "https://ko-fi.com/atunfrito?hidefeed=true&widget=true&embed=true",
         _ => return Err(format!("dirección desconocida: {cual}")),
     };
     // Con ShellExecute y no con «explorer url»: el Explorador no reconoce como web
@@ -435,7 +432,7 @@ fn windows_oscuro() -> bool {
 fn idioma_windows() -> &'static str {
     // SAFETY: sin argumentos; devuelve el LANGID de la interfaz del usuario.
     let langid = unsafe { windows_sys::Win32::Globalization::GetUserDefaultUILanguage() };
-    if langid & 0x3ff == 0x0a { "es" } else { "en" }
+    match langid & 0x3ff { 0x16 => "pt-BR", 0x0a => "es", _ => "en" }
 }
 
 /// Con `--elevado <peticion.json>`: la copia con permisos de administrador.
@@ -540,7 +537,7 @@ pub fn run() {
                     .and_then(|cfg| cfg["pubkey"].as_str()).is_some_and(|key| !key.is_empty()),
             });
 
-            WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
+            let principal = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Font Time")
                 .visible(!oculta)
                 .inner_size(1280.0, 820.0)
@@ -552,6 +549,7 @@ pub fn run() {
                 .background_color(if oscuro { FONDO_OSCURO } else { FONDO_CLARO }.into())
                 .initialization_script(script_inicio(&inicio))
                 .build()?;
+            win::poner_iconos_ventana(principal.hwnd()?.0)?;
             Ok(())
         })
         .build(tauri::generate_context!())

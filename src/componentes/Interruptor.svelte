@@ -46,10 +46,10 @@
     align-items: center;
     justify-content: center;
     background: transparent;
-    box-shadow: inset 0 0 0 1.5px var(--line2);
+    box-shadow: inset 0 0 0 1.5px var(--fuente-inactiva);
     transition: background-color 0.15s, box-shadow 0.15s;
   }
-  button.circ:hover { box-shadow: inset 0 0 0 1.5px var(--ink3); }
+  button.circ:not(.activa):hover { box-shadow: inset 0 0 0 2px var(--ink); }
   .circ.activa { background: var(--ok); box-shadow: none; }
   .circ.candado:not(.activa) { background: var(--line2); box-shadow: none; }
 </style>

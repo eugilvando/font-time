@@ -6,11 +6,10 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { AppWindow, Search, Compass, SlidersHorizontal, Power } from "@lucide/svelte";
-  import es from "./i18n/es.js";
-  import en from "./i18n/en.js";
+  import { textos, idiomaValido } from "./i18n/idiomas.js";
 
   let e = $state({ estado: "", carpetas: 0, tema: "", idioma: "" });
-  const tr = (clave) => (e.idioma === "en" ? en : es)[clave] ?? es[clave] ?? clave;
+  const tr = (clave) => textos[idiomaValido(e.idioma)][clave] ?? textos.en[clave] ?? clave;
   let abierto = $state(0);
 
   const hacer = (accion) => invoke("accion_bandeja", { accion });
@@ -20,7 +19,7 @@
     const aplicar = (x) => {
       e = x;
       if (x.tema) document.documentElement.dataset.theme = x.tema;
-      document.documentElement.lang = x.idioma === "en" ? "en" : "es";
+      document.documentElement.lang = idiomaValido(x.idioma);
     };
     invoke("estado_bandeja").then(aplicar);
     const quitar = [
