@@ -1,0 +1,73 @@
+name: Test installed Windows update
+on:
+  workflow_dispatch:
+    inputs:
+      previous:
+        description: Published source version
+        default: '0.4.1'
+        required: true
+      version:
+        description: Destination version
+        default: '0.5.0'
+        required: true
+permissions:
+  contents: read
+jobs:
+  update:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Download and verify installers
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIOUS: ${{ inputs.previous }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          foreach ($v in @($env:PREVIOUS,$env:VERSION)) {
+            if ($v -notmatch '^\d+\.\d+\.\d+$') { throw 'Expected a release version' }
+            $releases = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=40" | ConvertFrom-Json
+            $release = $releases | Where-Object tag_name -eq "v$v" | Select-Object -First 1
+            $asset = $release.assets | Where-Object name -eq "font-time_${v}_x64-setup.exe"
+            if (!$asset -or !$asset.digest) { throw "Missing installer for $v" }
+            $dst = Join-Path $env:RUNNER_TEMP "$v.exe"
+            curl.exe --fail --silent --show-error --location -H "Accept: application/octet-stream" -H "Authorization: Bearer $env:GH_TOKEN" $asset.url -o $dst
+            if ($LASTEXITCODE -or ("sha256:" + (Get-FileHash $dst).Hash.ToLower()) -ne $asset.digest) { throw "Invalid installer $v" }
+          }
+      - name: Upgrade and exercise the installed application
+        shell: pwsh
+        env:
+          PREVIOUS: ${{ inputs.previous }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          $profileDir = Join-Path $env:APPDATA 'com.eugilvando.fonttime'
+          $fonts = Join-Path $env:RUNNER_TEMP 'OneDrive/Font Time library'
+          New-Item -ItemType Directory -Path $fonts -Force | Out-Null
+          Copy-Item -LiteralPath 'src-tauri/tests/fixtures/GochiHand-Regular.ttf' -Destination $fonts
+          $fixture = Join-Path $fonts 'GochiHand-Regular.ttf'
+          $hash = (Get-FileHash $fixture).Hash
+          $base = Join-Path $env:RUNNER_TEMP "$env:PREVIOUS.exe"
+          $next = Join-Path $env:RUNNER_TEMP "$env:VERSION.exe"
+          $installer = Start-Process $base -ArgumentList '/S' -PassThru -Wait -WindowStyle Hidden
+          if ($installer.ExitCode) { throw "Install exited with $($installer.ExitCode)" }
+          New-Item -ItemType Directory -Path $profileDir -Force | Out-Null
+          ConvertTo-Json -InputObject @($fonts) | Set-Content (Join-Path $profileDir carpetas.json) -Encoding utf8NoBOM
+          @{idioma='pt-BR'; idiomaElegido=$true; carpetaPrincipal=$fonts; alCerrar='salir'; buscarActualizaciones=$false; desactivarAlSalir=$false} | ConvertTo-Json | Set-Content (Join-Path $profileDir ajustes.json) -Encoding utf8NoBOM
+          @{favoritas=@('Gochi Hand'); colecciones=@(@{id='test'; nombre='Editorial'; fuentes=@('Gochi Hand')})} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $profileDir biblioteca.json) -Encoding utf8NoBOM
+          $installer = Start-Process $next -ArgumentList '/S','/UPDATE' -PassThru -Wait -WindowStyle Hidden
+          if ($installer.ExitCode) { throw "Update exited with $($installer.ExitCode)" }
+          $reg = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' | Where-Object DisplayName -eq 'Font Time' | Select-Object -First 1
+          if ($reg.DisplayVersion -ne $env:VERSION) { throw 'Incorrect installed version' }
+          $env:FONT_TIME_EXE = Join-Path ($reg.InstallLocation.Trim('"')) 'font-time.exe'
+          $env:QA_FONT_DIR=$fonts
+          npm install --prefix "$env:RUNNER_TEMP/font-test" --no-audit --no-fund --ignore-scripts playwright-core@1.65.1
+          if ($LASTEXITCODE) {exit $LASTEXITCODE}
+          $env:NODE_PATH=Join-Path $env:RUNNER_TEMP 'font-test/node_modules'
+          node .github/tests/installed-windows.cjs
+          if ($LASTEXITCODE) {exit $LASTEXITCODE}
+          if ((Get-FileHash $fixture).Hash -ne $hash) { throw 'Original file changed' }
+          $biblioteca=Get-Content (Join-Path $profileDir biblioteca.json) -Raw | ConvertFrom-Json
+          if ($biblioteca.favoritas -notcontains 'Gochi Hand' -or $biblioteca.colecciones.nombre -notcontains 'Editorial') { throw 'Library data lost' }
