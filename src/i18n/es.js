@@ -1,6 +1,7 @@
 // Textos en español (idioma por defecto). Las claves salen del objeto I18N del
 // prototipo (design/tuna-fonts v2.dc.html) más los que allí iban sueltos.
 export default {
+  "org.pendingSync": "Esperando los archivos de la carpeta sincronizada. Tus colecciones siguen disponibles en este equipo.",
   "nov.library": "Personaliza la biblioteca con grupos, estilos, etiquetas y frases de muestra.",
   "nov.collections": "Transfiere colecciones por JSON, exporta ZIP y sincroniza mediante una carpeta compartida.",
   "nov.adobe": "Explora ejes de fuentes variables y activación opcional por documento Adobe.",

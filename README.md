@@ -9,12 +9,12 @@ O Font Time é um gerenciador de fontes para quem guarda muitas famílias tipogr
 
 ## Baixar o Font Time
 
-| Sistema | Download da versão 0.4.0 | Como usar |
+| Sistema | Download da versão 0.4.1 | Como usar |
 | --- | --- | --- |
-| Windows 10 e 11 · 64 bits | [Instalador (.exe)](https://github.com/eugilvando/font-time/releases/download/v0.4.0/font-time_0.4.0_x64-setup.exe) | Execute para instalar ou atualizar. |
-| Windows 10 e 11 · 64 bits | [Edição portátil (.zip)](https://github.com/eugilvando/font-time/releases/download/v0.4.0/font-time_0.4.0_x64-portable.zip) | Extraia o ZIP e abra `font-time.exe`. |
-| macOS · Apple Silicon e Intel | [Instalador universal (.dmg)](https://github.com/eugilvando/font-time/releases/download/v0.4.0/font-time_0.4.0_macos-universal.dmg) | Abra a imagem e arraste o Font Time para Aplicativos. |
-| Ubuntu 24.04 LTS · AMD64/x86-64 | [Pacote Debian (.deb)](https://github.com/eugilvando/font-time/releases/download/v0.4.0/font-time_0.4.0_ubuntu-24.04_amd64.deb) | Na pasta do download, execute `sudo apt install ./font-time_0.4.0_ubuntu-24.04_amd64.deb`. |
+| Windows 10 e 11 · 64 bits | [Instalador (.exe)](https://github.com/eugilvando/font-time/releases/download/v0.4.1/font-time_0.4.1_x64-setup.exe) | Execute para instalar ou atualizar. |
+| Windows 10 e 11 · 64 bits | [Edição portátil (.zip)](https://github.com/eugilvando/font-time/releases/download/v0.4.1/font-time_0.4.1_x64-portable.zip) | Extraia o ZIP e abra `font-time.exe`. |
+| macOS · Apple Silicon e Intel | [Instalador universal (.dmg)](https://github.com/eugilvando/font-time/releases/download/v0.4.1/font-time_0.4.1_macos-universal.dmg) | Abra a imagem e arraste o Font Time para Aplicativos. |
+| Ubuntu 24.04 LTS · AMD64/x86-64 | [Pacote Debian (.deb)](https://github.com/eugilvando/font-time/releases/download/v0.4.1/font-time_0.4.1_ubuntu-24.04_amd64.deb) | Na pasta do download, execute `sudo apt install ./font-time_0.4.1_ubuntu-24.04_amd64.deb`. |
 
 **macOS e Ubuntu são edições experimentais.** Os pacotes passaram pela conferência de formato e arquitetura. Os testes de instalação e uso nesses sistemas estão pendentes. A edição macOS ainda não tem notarização da Apple.
 
@@ -39,7 +39,7 @@ Os arquivos SHA-256 para conferir os downloads e as novidades de cada versão fi
 | Google Fonts | Explorar o catálogo e baixar famílias pelo aplicativo. |
 | Aparência e idioma | Escolher tema claro, escuro ou do sistema e usar a interface em português do Brasil, inglês ou espanhol. |
 
-## Novidades da versão 0.4.0
+## Novidades da versão 0.4.1
 
 - **Personalizar a biblioteca.** Escolha o tamanho das amostras, a velocidade de rolagem e as frases disponíveis na prévia. A primeira linha é o texto padrão. Abra uma família para atribuir um grupo e etiquetas, pesquisar por esses termos e experimentar os eixos disponíveis em uma fonte variável.
 - **Transferir coleções.** Em Configurações, exporte o JSON do Font Time e importe-o em outro computador. A importação mostra as famílias ausentes antes de mesclar as coleções. Escolha ZIP para arquivar também os arquivos de fonte disponíveis das famílias selecionadas nas coleções. Observe as licenças das fontes ao compartilhar esses arquivos.
@@ -74,7 +74,7 @@ npm run dev
 
 Use `npm run build` para gerar `src-tauri/target/release/font-time.exe`. O comando `npm run instalador` gera o instalador para Windows.
 
-Os dados do Font Time ficam em `%APPDATA%\com.eugilvando.fonttime`. O instalador Windows da versão 0.4.0 incorpora a chave pública do projeto para conferir a assinatura das próximas atualizações. Quem usa a versão 0.3.3 atualiza manualmente uma vez.
+Os dados do Font Time ficam em `%APPDATA%\com.eugilvando.fonttime`. O instalador Windows da versão 0.4.1 incorpora a chave pública do projeto para conferir a assinatura das próximas atualizações. Quem usa a versão 0.3.3 atualiza manualmente uma vez.
 
 ## Origem e licença
 

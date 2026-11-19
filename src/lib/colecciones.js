@@ -49,6 +49,13 @@ export function cambios(antes, despues) {
   }
   return ops;
 }
+// A cloud folder can briefly list only a subset of its files. A missing
+// journal batch is never a user deletion (deletions have explicit operations).
+export function diarioCompleto(diario, confirmados) {
+  const presentes = new Set(diario.map(lote => lote.id));
+  return confirmados.every(id => presentes.has(id));
+}
+
 export function reproducir(diario) {
   const docs = new Map();
   const orden = [...diario].sort((a,b) => a.clock - b.clock || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));

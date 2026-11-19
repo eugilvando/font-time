@@ -1,5 +1,6 @@
 // English texts. Same keys as es.js.
 export default {
+  "org.pendingSync": "Waiting for the synced folder to finish loading. Your local collections remain available.",
   "nov.library": "Organize the library with family groups, styles, tags and sample texts.",
   "nov.collections": "Transfer collections with JSON, export ZIP archives and sync through a shared folder.",
   "nov.adobe": "Explore variable font axes and optional activation for Adobe documents.",

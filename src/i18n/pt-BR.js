@@ -1,4 +1,5 @@
 export default {
+  "org.pendingSync": "Aguardando os arquivos da pasta sincronizada. Suas coleções continuam disponíveis neste computador.",
   "nov.library": "Personalize a biblioteca com grupos, estilos, etiquetas e frases de amostra.",
   "nov.collections": "Transfira coleções por JSON, exporte ZIP e sincronize por uma pasta do OneDrive.",
   "nov.adobe": "Experimente os eixos de fontes variáveis e a ativação opcional por documento Adobe.",

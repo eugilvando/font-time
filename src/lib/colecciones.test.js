@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {cambios, reproducir, exportar, leerColecciones, fusionar} from "./colecciones.js";
+import {cambios, reproducir, exportar, leerColecciones, fusionar, diarioCompleto} from "./colecciones.js";
 const col=(id,nombre,...fuentes)=>({id,nombre,fuentes});
 const batch=(id,clock,ops)=>({id,version:1,clock,ops});
 
@@ -19,6 +19,14 @@ test("concurrent additions, removal and rename converge independently of deliver
   assert.deepEqual(reproducir([right,initial,left]).lista,esperado);
   assert.deepEqual(reproducir([left,right,initial,initial]).lista,esperado);
 });
+test("a partial or empty OneDrive listing never replaces a known local library",()=>{
+  const known=["laptop","desktop"];
+  assert.equal(diarioCompleto([],known),false);
+  assert.equal(diarioCompleto([{id:"laptop"},{id:"unrelated"}],known),false);
+  assert.equal(diarioCompleto([{id:"desktop"},{id:"laptop"},{id:"new"}],known),true);
+  assert.equal(diarioCompleto([],[]),true);
+});
+
 test("offline edits and replay do not resurrect deleted collections",()=>{
   const base=[col("c","A","X")];
   const log=[batch("a",1,cambios([],base)),batch("b",2,cambios(base,[])),batch("c",3,cambios(base,[col("c","B","X","Y")]))];
