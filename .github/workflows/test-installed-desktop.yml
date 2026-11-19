@@ -1,0 +1,84 @@
+name: Test first launch on macOS and Ubuntu
+on:
+  workflow_dispatch:
+    inputs:
+      run:
+        description: Completed release build run ID
+        required: true
+permissions:
+  actions: read
+  contents: read
+jobs:
+  launch:
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            format: deb
+          - os: macos-15-intel
+            format: dmg
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: desktop-${{ matrix.format }}
+          path: install
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.run }}
+      - name: Install, launch and inspect indexed fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            mkdir -p "$RUNNER_TEMP/disk" "$HOME/Applications"
+            hdiutil attach -readonly -nobrowse -mountpoint "$RUNNER_TEMP/disk" install/*.dmg
+            ditto "$RUNNER_TEMP/disk/Font Time.app" "$HOME/Applications/Font Time.app"
+            hdiutil detach "$RUNNER_TEMP/disk"
+            app="$HOME/Applications/Font Time.app/Contents"
+            name=$(/usr/libexec/PlistBuddy -c 'Print CFBundleExecutable' "$app/Info.plist")
+            cmd=("$app/MacOS/$name")
+            profile="$HOME/Library/Application Support/com.eugilvando.fonttime"
+          else
+            sudo apt-get -o Acquire::Retries=3 update -qq
+            sudo apt-get -o Acquire::Retries=3 install -y xvfb xauth dbus-x11 ./install/*.deb
+            cmd=(dbus-run-session -- xvfb-run -a /usr/bin/font-time)
+            profile="${XDG_DATA_HOME:-$HOME/.local/share}/com.eugilvando.fonttime"
+            export WEBKIT_DISABLE_DMABUF_RENDERER=1
+          fi
+          export QA_PROFILE="$profile" QA_DIR="$RUNNER_TEMP/Library with spaces"
+          mkdir -p "$QA_PROFILE" "$QA_DIR"
+          cp src-tauri/tests/fixtures/GochiHand-Regular.ttf "$QA_DIR"
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,os
+          p=Path(os.environ['QA_PROFILE'])
+          folder=os.environ['QA_DIR']
+          (p/'carpetas.json').write_text(json.dumps([folder]))
+          (p/'ajustes.json').write_text(json.dumps(dict(carpetaPrincipal=folder,idioma='pt-BR',idiomaElegido=True,buscarActualizaciones=False)))
+          PY
+          "${cmd[@]}" >"$RUNNER_TEMP/launch.log" 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,os,time
+          p=Path(os.environ['QA_PROFILE'])/'fonts-cache.json'
+          for attempt in range(120):
+              if p.is_file():
+                  data=json.loads(p.read_bytes())
+                  f=next((f for f in data['familias'] if f['nombre']=='Gochi Hand'),None)
+                  if f:
+                      assert not f['activa'] and any(s['propiedades']['peso']==400 for s in f['estilos'])
+                      assert any(os.environ['QA_DIR'] in path for path in f['archivos'])
+                      print('PASS installed application launched and indexed the inactive fixture with style metadata')
+                      break
+              time.sleep(1)
+          else:
+              print((Path(os.environ['RUNNER_TEMP'])/'launch.log').read_text(errors='replace')[-4000:])
+              raise SystemExit('No indexed fixture after first launch')
+          PY
