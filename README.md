@@ -16,6 +16,8 @@ O Font Time é um gerenciador de fontes para quem guarda muitas famílias tipogr
 | macOS · Apple Silicon e Intel | [Instalador universal (.dmg)](https://github.com/eugilvando/font-time/releases/download/v0.5.0/font-time_0.5.0_macos-universal.dmg) | Abra a imagem e arraste o Font Time para Aplicativos. |
 | Ubuntu 24.04 LTS · AMD64/x86-64 | [Pacote Debian (.deb)](https://github.com/eugilvando/font-time/releases/download/v0.5.0/font-time_0.5.0_ubuntu-24.04_amd64.deb) | Na pasta do download, execute `sudo apt install ./font-time_0.5.0_ubuntu-24.04_amd64.deb`. |
 
+No Windows, o teste de atualização da 0.4.1 para a 0.5.0 confirmou a preservação da pasta monitorada, do idioma, dos favoritos e das coleções. O app instalado indexou a fonte de teste e a manteve inativa.
+
 **macOS e Ubuntu são edições experimentais.** A instalação, a primeira abertura e a indexação de uma fonte foram testadas no macOS Intel e no Ubuntu 24.04. O pacote universal contém executáveis para Intel e Apple Silicon. O teste em hardware Apple Silicon e a notarização da Apple seguem pendentes.
 
 Os arquivos SHA-256 para conferir os downloads e as novidades de cada versão ficam na [página de releases](https://github.com/eugilvando/font-time/releases).
