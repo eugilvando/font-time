@@ -1,7 +1,7 @@
 <script>
   // El círculo de cada fuente: lleno con check = activa, aro = inactiva,
   // gris con candado = del sistema (no se puede tocar).
-  let { activa, bloqueada, titulo, onclick, tam = 18, abajo = "0px" } = $props();
+  let { activa, parcial=false, bloqueada, titulo, onclick, tam = 18, abajo = "0px" } = $props();
 </script>
 
 {#if bloqueada}
@@ -15,7 +15,7 @@
   <button
     type="button"
     class="circ"
-    class:activa
+    class:activa class:parcial
     title={titulo}
     aria-label={titulo}
     aria-pressed={activa}
@@ -28,7 +28,7 @@
     }}
     ondblclick={(e) => e.stopPropagation()}
   >
-    {#if activa}
+    {#if activa && !parcial}
       <svg width={tam * 0.56} height={tam * 0.56} viewBox="0 0 12 12" fill="none" stroke="var(--win)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M2.3 6.4 4.9 8.9 9.7 3.4" />
       </svg>
@@ -50,6 +50,7 @@
     transition: background-color 0.15s, box-shadow 0.15s;
   }
   button.circ:not(.activa):hover { box-shadow: inset 0 0 0 2px var(--ink); }
-  .circ.activa { background: var(--ok); box-shadow: none; }
+  .circ.activa { background: var(--active); box-shadow: none; }
+  .circ.parcial {background:transparent;box-shadow:inset 0 0 0 2px var(--active);}
   .circ.candado:not(.activa) { background: var(--line2); box-shadow: none; }
 </style>

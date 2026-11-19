@@ -41,6 +41,8 @@ const POR_DEFECTO = {
   textoPrueba: "",
   muestras: null,
   velocidad: 1,
+  escala: 100,
+  filtrosGuardados: [],
   agrupar: true,
   grupos: [],
   etiquetas: [],
@@ -78,6 +80,7 @@ $effect.root(() => {
   // miles de casillas en el mapa de caracteres del espécimen, animar el color
   // de todas a la vez atascaba el cambio (y se veía a medias).
   let primera = true;
+  $effect(() => {document.documentElement.style.setProperty("--ui-scale", String(([90,100,110,125,150].includes(ajustes.escala) ? ajustes.escala : 100)/100));});
   $effect(() => {
     const tema = temaActual();
     if (enTauri) import("@tauri-apps/api/window").then(({ getCurrentWindow }) =>

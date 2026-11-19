@@ -50,6 +50,8 @@ pub fn clasificar(d: &Datos) -> &'static str {
         return "otros";
     }
 
+    if clase == 5 || n.contains("slab") { return "slab"; }
+    if (clase==9 && d.clase as u8==2) || tiene(&n,&["blackletter","fraktur","textura","schwabacher"]) {return "blackletter";}
     // Monoespaciada: panose (texto latino con proporción "monospaced") o el nombre
     // ("JetBrainsMono" sí; "Monotype Corsiva" y "Lucida Sans Unicode" no).
     let mono_nombre = n.split(|c: char| !c.is_alphanumeric()).any(|w| {
@@ -63,7 +65,7 @@ pub fn clasificar(d: &Datos) -> &'static str {
 
     // Símbolos, dingbats y decorativas.
     if familia_panose == 5 || clase == 12 || tiene(&n, &["dings", "symbol", "icons", "mdl2", "marlett", "webdings", "emoji"]) {
-        return "display";
+        return "symbols";
     }
 
     // Escritas a mano.
@@ -95,7 +97,7 @@ pub fn clasificar(d: &Datos) -> &'static str {
     if tiene(&n, &["serif", "roman", "garamond", "baskerville", "times", "georgia", "bodoni", "caslon", "didot", "slab", "antiqua", "book"]) {
         return "serif";
     }
-    "display"
+    if tiene(&n,&["display","decorative","poster"]) { "display" } else { "unknown" }
 }
 
 #[cfg(test)]
@@ -120,7 +122,7 @@ mod tests {
         x.panose = [4, 2, 2, 2, 2, 2, 2, 2, 2, 2];
         assert_eq!(clasificar(&x), "display");
         x.panose = [5, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        assert_eq!(clasificar(&x), "display");
+        assert_eq!(clasificar(&x), "symbols");
     }
 
     #[test]
@@ -131,7 +133,7 @@ mod tests {
         x.clase = (1 << 8) | 4;
         assert_eq!(clasificar(&x), "serif");
         x.clase = 5 << 8; // slab
-        assert_eq!(clasificar(&x), "serif");
+        assert_eq!(clasificar(&x), "slab");
         x.clase = 10 << 8;
         assert_eq!(clasificar(&x), "script");
     }
@@ -146,8 +148,8 @@ mod tests {
         assert_eq!(clasificar(&d("Instrument Serif")), "serif");
         assert_eq!(clasificar(&d("Dancing Script")), "script");
         assert_eq!(clasificar(&d("Gochi Hand")), "script");
-        assert_eq!(clasificar(&d("Wingdings")), "display");
-        assert_eq!(clasificar(&d("Segoe MDL2 Assets")), "display");
+        assert_eq!(clasificar(&d("Wingdings")), "symbols");
+        assert_eq!(clasificar(&d("Segoe MDL2 Assets")), "symbols");
     }
 
     #[test]
@@ -188,9 +190,9 @@ mod tests {
     }
 
     #[test]
-    fn sin_pistas_va_a_display() {
+    fn sin_pistas_sin_clasificar() {
         let x = Datos { familia: "Zzyzx".into(), codepages: Some(1), unicode: [3, 0, 0, 0], ..Default::default() };
-        assert_eq!(clasificar(&x), "display");
+        assert_eq!(clasificar(&x), "unknown");
         // "Scope" no es "sc" de chino simplificado.
         assert_ne!(clasificar(&d("Scope One")), "otros");
     }

@@ -331,6 +331,18 @@ fn listar_con_directorios(carpeta: &Path, recursivo: bool, directorios: &mut Vec
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Estilo {
+    #[serde(default)]
+    pub propiedades: leer::Propiedades,
+    #[serde(default)]
+    pub fuentes: Vec<String>,
+    #[serde(default)]
+    pub duplicada: bool,
+    #[serde(default)]
+    pub identicos: Vec<String>,
+    #[serde(default)]
+    pub activa: bool,
+    #[serde(default)]
+    pub editable: bool,
     pub nombre: String,
     pub peso: u16,
     pub cursiva: bool,
@@ -364,6 +376,8 @@ pub struct Familia {
 /// Agrupa las entradas ya leídas por familia.
 pub fn agrupar(entradas: &[Entrada], caras: &dyn Fn(&Path) -> Result<Vec<Cara>, String>) -> Vec<Familia> {
     let mut por: BTreeMap<String, Familia> = BTreeMap::new();
+    let mut copias: std::collections::HashMap<String,HashSet<String>> = Default::default();
+    let mut huellas = std::collections::HashMap::new();
     let mut ordenadas: Vec<&Entrada> = entradas.iter().collect();
     ordenadas.sort_by_key(|e| e.origen);
     for e in ordenadas {
@@ -388,6 +402,7 @@ pub fn agrupar(entradas: &[Entrada], caras: &dyn Fn(&Path) -> Result<Vec<Cara>, 
                 );
             }
             Ok(cs) => {
+                let individual = cs.len() == 1 && matches!(e.origen, Origen::Carpeta | Origen::Biblioteca);
                 for c in cs {
                     let f = por.entry(c.familia.to_lowercase()).or_insert_with(|| Familia {
                         nombre: c.familia.clone(),
@@ -410,15 +425,34 @@ pub fn agrupar(entradas: &[Entrada], caras: &dyn Fn(&Path) -> Result<Vec<Cara>, 
                         f.archivo = archivo.clone();
                         f.categoria = c.categoria.clone();
                     }
-                    if !f.estilos.iter().any(|s| s.nombre == c.estilo && s.peso == c.peso && s.cursiva == c.cursiva) {
-                        f.estilos.push(Estilo { nombre: c.estilo, peso: c.peso, cursiva: c.cursiva, archivo: archivo.clone(), familia_win: c.familia_win, completo: c.completo, postscript:c.postscript });
+                    let previo = f.estilos.iter_mut().find(|s| s.nombre == c.estilo && s.peso == c.peso && s.cursiva == c.cursiva);
+                    let original = !e.activa && matches!(e.origen, Origen::Carpeta | Origen::Biblioteca);
+                    let fuentes = if original {vec![archivo.clone()]} else {vec![]};
+                    if original && !c.propiedades.huella.is_empty() {
+                        huellas.insert(archivo.clone(),c.propiedades.huella.clone());
+                        copias.entry(c.propiedades.huella.clone()).or_default().insert(archivo.clone());
                     }
+                    let estilo = Estilo { propiedades:c.propiedades, fuentes, duplicada:false, identicos:vec![], nombre: c.estilo, peso: c.peso, cursiva: c.cursiva, archivo: archivo.clone(), familia_win: c.familia_win, completo: c.completo, postscript:c.postscript, activa:e.activa, editable:individual };
+                    if let Some(s) = previo {
+                        let mut rutas = std::mem::take(&mut s.fuentes);
+                        for ruta in &estilo.fuentes { if !rutas.contains(ruta) {rutas.push(ruta.clone());} }
+                        // Prefer an active registration. For inactive duplicates prefer a standalone file.
+                        if (!s.activa && estilo.activa) || (s.activa == estilo.activa &&
+                            if s.activa { s.editable && !estilo.editable } else { !s.editable && estilo.editable }) {
+                            *s = estilo;
+                        }
+                        s.fuentes=rutas;
+                    } else { f.estilos.push(estilo); }
                 }
             }
         }
     }
     let mut v: Vec<Familia> = por.into_values().collect();
     for f in &mut v {
+        for s in &mut f.estilos {
+            s.identicos = s.fuentes.iter().filter(|ruta|huellas.get(*ruta).and_then(|h|copias.get(h)).is_some_and(|paths|paths.len()>1)).cloned().collect();
+            s.duplicada=!s.identicos.is_empty();
+        }
         f.estilos.sort_by_key(|s| (s.cursiva, (s.peso as i32 - 400).abs(), s.peso));
     }
     v.sort_by_key(|f| f.nombre.to_lowercase());

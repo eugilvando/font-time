@@ -7,7 +7,7 @@ export const enCarpeta = (familia, carpeta) => familia.archivos.some((ruta) => d
 export function arbolCarpetas(raices, directorios, familias) {
   const orden = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
   function nodo(ruta, nombre) {
-    return { ruta, nombre, hijos: [], cuenta: 0, activas: 0 };
+    return { ruta, nombre, hijos: [], cuenta: 0, activas: 0, totalEstilos: 0 };
   }
   return raices.map(({ ruta }) => {
     const sep = separador(ruta);
@@ -41,9 +41,20 @@ export function arbolCarpetas(raices, directorios, familias) {
         const p = limpiar(archivo);
         recorrer(p.slice(0, p.lastIndexOf(sep)), visitados);
       }
-      for (const carpeta of visitados) {
-        carpeta.cuenta++;
-        if (familia.activa) carpeta.activas++;
+      for (const carpeta of visitados) carpeta.cuenta++;
+      const estilos = familia.estilos?.length ? familia.estilos : [familia];
+      for (const estilo of estilos) {
+        const destinos = new Set();
+        const rutas = estilo.fuentes?.length ? estilo.fuentes : [estilo.archivo];
+        for (const archivo of rutas) {
+          if (!archivo || !dentro(archivo,ruta)) continue;
+          const p=limpiar(archivo);
+          recorrer(p.slice(0,p.lastIndexOf(sep)),destinos);
+        }
+        for (const carpeta of destinos) {
+          carpeta.totalEstilos++;
+          if (estilo.activa) carpeta.activas++;
+        }
       }
     }
     for (const carpeta of indice.values()) carpeta.hijos.sort((a, b) => orden.compare(a.nombre, b.nombre));

@@ -129,7 +129,6 @@ pub async fn bajar(familia: &str, destino: &Path, mut progreso: impl FnMut(f64))
     if archivos.is_empty() {
         return Err("google fonts no da archivos para esta familia".into());
     }
-    let _ = fs::remove_dir_all(destino);
     fs::create_dir_all(destino).map_err(|e| e.to_string())?;
     let n = archivos.len() as f64;
     let mut fuera = Vec::new();

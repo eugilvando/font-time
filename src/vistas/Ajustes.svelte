@@ -70,6 +70,7 @@
   }
 
   const filas = $derived([
+    { etiqueta:t("ui.scale"), pista:t("ui.scaleHint"), valor:ajustes.escala, elegir:v=>ajustes.escala=v, opciones:[90,100,110,125,150].map(v=>[v,v+"%"]) },
     { etiqueta: t("aj.tema"), pista: t("aj.temaHint"), valor: ajustes.tema, elegir: ponerTema, opciones: [[null, t("aj.temaSistema")], ["light", t("aj.claro")], ["dark", t("aj.oscuro")]] },
     { etiqueta: t("aj.abrir"), pista: t("aj.abrirHint"), valor: ajustes.alAbrir, elegir: (v) => (ajustes.alAbrir = v), opciones: [["instaladas", t("sec.instaladas")], ["favoritas", t("sec.favoritas")], ...(ajustes.carpetaPrincipal ? [["carpeta", t("mainFolder")]] : [])] },
     ...(esWindows ? [
@@ -153,6 +154,7 @@
           <span class="txt"><span class="eti">{t("mainFolder")}</span><span class="pista ruta" title={ajustes.carpetaPrincipal}>{ajustes.carpetaPrincipal || t("mainFolderHint")}</span></span>
           <button type="button" class="boton" onclick={onelegirCarpeta}>{t("chooseFolder")}</button>
         </div>
+        <div class="fila"><div class="txt"><span class="eti">{t("org.importDest")}</span><span class="pista">{t("org.importHelp")}</span></div></div>
         <section class="carpetas" aria-label={t("grupo.carpetas")}>
           <div class="fila">
             <div class="txt"><span class="eti">{t("grupo.carpetas")}</span><span class="pista">{t("folderInfo")}</span></div>

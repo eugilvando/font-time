@@ -9,12 +9,12 @@ O Font Time é um gerenciador de fontes para quem guarda muitas famílias tipogr
 
 ## Baixar o Font Time
 
-| Sistema | Download da versão 0.4.1 | Como usar |
+| Sistema | Download da versão 0.5.0 | Como usar |
 | --- | --- | --- |
-| Windows 10 e 11 · 64 bits | [Instalador (.exe)](https://github.com/eugilvando/font-time/releases/download/v0.4.1/font-time_0.4.1_x64-setup.exe) | Execute para instalar ou atualizar. |
-| Windows 10 e 11 · 64 bits | [Edição portátil (.zip)](https://github.com/eugilvando/font-time/releases/download/v0.4.1/font-time_0.4.1_x64-portable.zip) | Extraia o ZIP e abra `font-time.exe`. |
-| macOS · Apple Silicon e Intel | [Instalador universal (.dmg)](https://github.com/eugilvando/font-time/releases/download/v0.4.1/font-time_0.4.1_macos-universal.dmg) | Abra a imagem e arraste o Font Time para Aplicativos. |
-| Ubuntu 24.04 LTS · AMD64/x86-64 | [Pacote Debian (.deb)](https://github.com/eugilvando/font-time/releases/download/v0.4.1/font-time_0.4.1_ubuntu-24.04_amd64.deb) | Na pasta do download, execute `sudo apt install ./font-time_0.4.1_ubuntu-24.04_amd64.deb`. |
+| Windows 10 e 11 · 64 bits | [Instalador (.exe)](https://github.com/eugilvando/font-time/releases/download/v0.5.0/font-time_0.5.0_x64-setup.exe) | Execute para instalar ou atualizar. |
+| Windows 10 e 11 · 64 bits | [Edição portátil (.zip)](https://github.com/eugilvando/font-time/releases/download/v0.5.0/font-time_0.5.0_x64-portable.zip) | Extraia o ZIP e abra `font-time.exe`. |
+| macOS · Apple Silicon e Intel | [Instalador universal (.dmg)](https://github.com/eugilvando/font-time/releases/download/v0.5.0/font-time_0.5.0_macos-universal.dmg) | Abra a imagem e arraste o Font Time para Aplicativos. |
+| Ubuntu 24.04 LTS · AMD64/x86-64 | [Pacote Debian (.deb)](https://github.com/eugilvando/font-time/releases/download/v0.5.0/font-time_0.5.0_ubuntu-24.04_amd64.deb) | Na pasta do download, execute `sudo apt install ./font-time_0.5.0_ubuntu-24.04_amd64.deb`. |
 
 **macOS e Ubuntu são edições experimentais.** Os pacotes passaram pela conferência de formato e arquitetura. Os testes de instalação e uso nesses sistemas estão pendentes. A edição macOS ainda não tem notarização da Apple.
 
@@ -39,7 +39,18 @@ Os arquivos SHA-256 para conferir os downloads e as novidades de cada versão fi
 | Google Fonts | Explorar o catálogo e baixar famílias pelo aplicativo. |
 | Aparência e idioma | Escolher tema claro, escuro ou do sistema e usar a interface em português do Brasil, inglês ou espanhol. |
 
-## Novidades da versão 0.4.1
+## Novidades da versão 0.5.0
+
+- Ative ou desative um estilo na ficha da família ou na lista de estilos desagrupados. Fontes protegidas e arquivos que contêm várias faces indicam a limitação na ficha.
+- Escolha a pasta principal nas configurações para receber as importações de arquivos e as famílias baixadas do Google Fonts. A pasta pode ser sua biblioteca do OneDrive. Fontes importadas ficam disponíveis para prévia e ativação manual.
+- O clique direito na lista ou na grade mostra quantos itens selecionados podem ser ativados ou desativados. O menu também abre a família, as etiquetas e os grupos. Para excluir originais inativos, confira os caminhos antes de enviá-los à lixeira do sistema.
+- Explore os glifos de cada estilo, pesquise por caractere, nome ou código Unicode e abra um bloco para copiar caracteres. Para glifos sem código Unicode que tenham contorno, o clique copia o desenho em SVG.
+- Na barra superior, o ícone **Filtros** abre estado, categorias, etiquetas e histogramas de peso, contraste, proporção e altura-x. Você pode localizar fontes variáveis, coloridas e cópias idênticas e salvar combinações em **Filtros inteligentes**.
+- As pastas conservam seus três indicadores. O círculo verde preenchido identifica todos os estilos ativos, o aro verde indica ativação parcial e o aro neutro indica que nenhum estilo está ativo.
+- A ficha tem cinco abas: **Estilos**, **Licenças**, **Cascata**, **Glifos** e **Detalhes**. Trocar de aba preserva o estilo escolhido. Ajuste a escala geral entre 90% e 150% nas configurações.
+- Na ficha da fonte, edite etiquetas pessoais individualmente e expanda os atributos e as etiquetas do Google Fonts quando precisar.
+
+## Recursos da versão 0.4.1
 
 - **Personalizar a biblioteca.** Escolha o tamanho das amostras, a velocidade de rolagem e as frases disponíveis na prévia. A primeira linha é o texto padrão. Abra uma família para atribuir um grupo e etiquetas, pesquisar por esses termos e experimentar os eixos disponíveis em uma fonte variável.
 - **Transferir coleções.** Em Configurações, exporte o JSON do Font Time e importe-o em outro computador. A importação mostra as famílias ausentes antes de mesclar as coleções. Escolha ZIP para arquivar também os arquivos de fonte disponíveis das famílias selecionadas nas coleções. Observe as licenças das fontes ao compartilhar esses arquivos.
@@ -49,7 +60,15 @@ Os arquivos SHA-256 para conferir os downloads e as novidades de cada versão fi
 
 ## Imagens do aplicativo
 
-Capturas do Font Time 0.3.3 no Windows, com a interface em português do Brasil.
+### Filtros e ficha da fonte na 0.5.0
+
+Capturas da interface em português com uma biblioteca de demonstração.
+
+![Painel de filtros com categoria e estado selecionados](docs/font-time-filtros-050.png)
+
+![Ficha da família na aba Glifos](docs/font-time-ficha-050.png)
+
+As duas capturas a seguir mostram as vistas gerais da versão 0.3.3 no Windows.
 
 ### Biblioteca em lista
 

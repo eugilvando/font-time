@@ -24,7 +24,7 @@ pub struct Cache {
     pub familias: Vec<Familia>,
 }
 
-const VERSION: u32 = 4;
+const VERSION: u32 = 5;
 pub const EN_NUBE: &str = "cloud-only";
 #[cfg(unix)]
 fn en_nube(_: &fs::Metadata) -> bool { false }
@@ -37,7 +37,7 @@ fn en_nube(m: &fs::Metadata) -> bool {
 
 fn sello(ruta: &Path) -> Option<(u64, u64, bool)> {
     let m = fs::metadata(ruta).ok()?;
-    let t = m.modified().ok()?.duration_since(UNIX_EPOCH).ok()?.as_secs();
+    let t = m.modified().ok()?.duration_since(UNIX_EPOCH).ok()?.as_nanos() as u64;
     Some((t, m.len(), en_nube(&m)))
 }
 

@@ -1,21 +1,20 @@
 <script>
   import { SvelteSet } from "svelte/reactivity";
   import Marca from "./Marca.svelte";
-  import { SlidersHorizontal, Sun, Moon, Plus } from "@lucide/svelte";
+  import { SlidersHorizontal, Sun, Moon, Plus, Files, FileType, Star, Clock, Layers, Library, Folder, FolderCog, Type } from "@lucide/svelte";
   import Segmentado from "./Segmentado.svelte";
   import Actualizacion from "./Actualizacion.svelte";
-  import { temaActual, ponerTema, version } from "../lib/ajustes.svelte.js";
+  import { ajustes, temaActual, ponerTema, version } from "../lib/ajustes.svelte.js";
   import { arrastre } from "../lib/arrastre.svelte.js";
   import { t } from "../lib/i18n.svelte.js";
 
   // seccion: instaladas | descubrir | favoritas | col:<id> | car:<ruta>
   let {
-    seccion, cat, cuentas, catCuentas, colecciones, carpetas, pie, renombrando = $bindable(),
-    onseccion, oncat, onnueva, onrenombrar, onanadirCarpeta, onajustes, onacerca,
+    seccion, cuentas, guardados, onguardado, colecciones, carpetas, pie, renombrando = $bindable(),
+    onseccion, onnueva, onrenombrar, onanadirCarpeta, onajustes, onacerca,
   } = $props();
 
-  const CATEGORIAS = ["sans", "serif", "script", "display", "mono", "otros"];
-  const categoriasVisibles = $derived(CATEGORIAS.filter((c) => (catCuentas[c] ?? 0) > 0 || cat === c));
+  const iconos = {colecciones:Layers,proveedores:Library,carpetas:Folder,inteligentes:FolderCog};
 
   const plegados = new SvelteSet();
   const excepciones = new SvelteSet();
@@ -70,22 +69,23 @@
     data-coleccion={extra.coleccion}
     aria-current={activo ? "page" : undefined}
   >
-    <span class="punto" class:oculto={extra.oculto} class:verde={extra.verde} class:parcial={extra.parcial}></span>
+    {#if extra.icono}<extra.icono size={15} strokeWidth={1.8}/>{:else}<span class="punto" class:oculto={extra.oculto} class:verde={extra.verde} class:parcial={extra.parcial}></span>{/if}
     <span class="texto">{texto}</span>
     {#if cuenta != null && cuenta !== ""}<span class="cuenta num">{cuenta}</span>{/if}
   </button>
 {/snippet}
 
 {#snippet cabecera(id, texto)}
+  {@const Icono=iconos[id]}
   <button class="titulo cabecera" type="button" aria-expanded={!plegados.has(id)} onclick={() => alternar(plegados, id)}>
-    <span class="flecha" class:abierta={!plegados.has(id)}></span>{texto}
+    <span class="flecha" class:abierta={!plegados.has(id)}></span><Icono size={14} />{texto}
   </button>
 {/snippet}
 
 {#snippet rama(c, raiz, nivel)}
   {@const id = raiz + "|" + c.ruta}
   {@const abierta = nivel === 0 ? !excepciones.has(id) : excepciones.has(id)}
-  {@const estado = c.activas === 0 ? t("sec.inactivas") : c.activas === c.cuenta ? t("nav.active") : t("nav.partial")}
+  {@const estado = c.activas === 0 ? t("sec.inactivas") : c.activas === c.totalEstilos ? t("nav.active") : t("nav.partial")}
   <div class="rama" style:padding-left={Math.min(nivel, 6) * 9 + "px"}>
     {#if c.hijos.length}
       <button class="desplegar" type="button" aria-label={c.ruta} aria-expanded={abierta} onclick={() => alternar(excepciones, id)}>
@@ -95,7 +95,7 @@
       <span class="hueco"></span>
     {/if}
     {@render item(c.nombre, seccion === "car:" + c.ruta, () => onseccion("car:" + c.ruta), c.cuenta,
-      { titulo: c.ruta + " · " + estado, verde: c.activas > 0 && c.activas === c.cuenta, parcial: c.activas > 0 && c.activas < c.cuenta })}
+      { titulo: c.ruta + " · " + estado, verde: c.activas > 0 && c.activas === c.totalEstilos, parcial: c.activas > 0 && c.activas < c.totalEstilos })}
   </div>
   {#if abierta}
     {#each c.hijos as hijo (hijo.ruta)}{@render rama(hijo, raiz, nivel + 1)}{/each}
@@ -109,9 +109,10 @@
 
   <nav>
     <div class="grupo">
-      {@render item(t("nav.all"), seccion === "instaladas" && !cat, () => onseccion("instaladas"), cuentas.instaladas, { oculto: true })}
-      {@render item(t("sec.recientes"), seccion === "recientes", () => onseccion("recientes"), cuentas.recientes, { oculto: true })}
-      {@render item(t("nav.favorites"), seccion === "favoritas", () => onseccion("favoritas"), cuentas.favoritas)}
+      {@render item(t("nav.all"), seccion === "instaladas", () => onseccion("instaladas"), cuentas.instaladas, { icono:Files })}
+      {@render item(t("sec.sistema"),seccion==="sistema",()=>onseccion("sistema"),cuentas.sistema,{icono:FileType})}
+      {@render item(t("sec.recientes"), seccion === "recientes", () => onseccion("recientes"), cuentas.recientes, { icono:Clock })}
+      {@render item(t("nav.favorites"), seccion === "favoritas", () => onseccion("favoritas"), cuentas.favoritas,{icono:Star})}
       {@render item(t("nav.active"), seccion === "activas", () => onseccion("activas"), cuentas.activas, { verde: true })}
       {@render item(t("sec.inactivas"), seccion === "inactivas", () => onseccion("inactivas"), cuentas.inactivas)}
     </div>
@@ -163,20 +164,19 @@
     <div class="grupo">
       {@render cabecera("proveedores", t("nav.providers"))}
       {#if !plegados.has("proveedores")}
-        {@render item("Google Fonts", seccion === "descubrir", () => onseccion("descubrir"), cuentas.descubrir)}
+        {@render item("Google Fonts", seccion === "descubrir", () => onseccion("descubrir"), cuentas.descubrir,{icono:Type})}
       {/if}
     </div>
 
-    {#if categoriasVisibles.length}
-      <div class="grupo">
-        {@render cabecera("categorias", t("grupo.categorias"))}
-        {#if !plegados.has("categorias")}
-          {#each categoriasVisibles as c (c)}
-            {@render item(t("cat." + c), cat === c, () => oncat(cat === c ? null : c), catCuentas[c] ?? 0)}
-          {/each}
-        {/if}
-      </div>
-    {/if}
+    <div class="grupo">
+      {@render cabecera("inteligentes",t("filter.smart"))}
+      {#if !plegados.has("inteligentes")}
+        {#each guardados as g (g.nombre)}
+          <div class="saved">{@render item(g.nombre,false,()=>onguardado(g),null,{icono:SlidersHorizontal})}<button class="quitar" aria-label={t("filter.removeSaved")+" · "+g.nombre} onclick={()=>ajustes.filtrosGuardados=guardados.filter(v=>v.nombre!==g.nombre)}>×</button></div>
+        {/each}
+        {#if !guardados.length}<small class="nota">{t("filter.smartHint")}</small>{/if}
+      {/if}
+    </div>
     <div class="grupo">
       {@render cabecera("carpetas", t("nav.folders"))}
       {#if !plegados.has("carpetas")}
@@ -221,6 +221,7 @@
   }
   .cabeza { flex: none; height: 52px; display: flex; align-items: center; gap: 8px; padding: 0 8px; }
   nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin: 0 -6px; padding: 0 6px 6px; }
+  .saved {display:flex;align-items:center;} .saved :global(.item) {flex:1;min-width:0;} .quitar {border:0;color:var(--ink2);background:none;}
   .grupo { display: flex; flex-direction: column; gap: 1px; margin-top: 14px; }
   .grupo:first-child { margin-top: 2px; }
   .titulo { padding: 0 10px 6px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink3); }
@@ -243,8 +244,8 @@
   .item.diana { box-shadow: inset 0 0 0 1.5px var(--red); }
   .punto { width: 10px; height: 10px; flex: none; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--fuente-inactiva); }
   .punto.oculto { visibility: hidden; }
-  .punto.verde { background: var(--ok); box-shadow: none; }
-  .punto.parcial { box-shadow: inset 0 0 0 1.5px var(--ok); }
+  .punto.verde { background: var(--active); box-shadow: none; }
+  .punto.parcial { box-shadow: inset 0 0 0 1.5px var(--active); }
   .cabecera, .desplegar, .anadir, .nueva { background: transparent; border: 0; color: var(--ink2); cursor: pointer; }
   .cabecera { display: flex; align-items: center; gap: 8px; min-height: 23px; text-align: left; }
   .flecha { width: 0; height: 0; border-top: 4px solid transparent; border-bottom: 4px solid transparent; border-left: 5px solid currentColor; }

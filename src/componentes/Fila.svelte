@@ -1,20 +1,21 @@
 <script>
   // Una fila de la lista: nombre pequeño encima y la fuente debajo.
   import { ChevronRight } from "@lucide/svelte";
+  import { palabrasDe } from "../lib/organizacion.svelte.js";
   import Interruptor from "./Interruptor.svelte";
   import Corazon from "./Corazon.svelte";
   import { t } from "../lib/i18n.svelte.js";
 
-  let { f, estilo, muestra, tamano, sel, fav, bloqueada, motivo, onsel, onabrir, onalternar, onfav, onarrastre } = $props();
+  let { f, estilo, muestra, tamano, sel, fav, bloqueada, motivo, onsel, onetiqueta, onabrir, onalternar, onfav, onarrastre } = $props();
 
   const on = $derived(f.activa);
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-<div class="fila" class:sel onclick={onsel} ondblclick={onabrir} onpointerdown={onarrastre} data-familia={f.nombre}>
-  <Interruptor activa={f.activa} {bloqueada} titulo={bloqueada ? motivo : f.activa ? t("deactivate") : t("activate")} onclick={onalternar} />
+<div class="fila" class:sel onclick={onsel} ondblclick={onabrir} onpointerdown={onarrastre} data-familia={f.nombre} data-fila={f.claveVista || f.nombre}>
+  <Interruptor parcial={!f.estiloVista && f.activa && f.estilos.some(s=>s.activa) && f.estilos.some(s=>!s.activa)} activa={f.activa} {bloqueada} titulo={bloqueada ? motivo : f.activa ? t("deactivate") : t("activate")} onclick={onalternar} />
   <div class="txt">
-    <span class="nombre">{f.tituloVista ?? f.nombre}{#if f.error}<span class="roto"> · {t(f.error === "cloud-only" ? "cloudOnly" : "err.ilegible")}</span>{/if}</span>
+    <span class="nombre">{f.tituloVista ?? f.nombre} · {((f.estiloVista?.archivo||f.archivo)?.split(".").pop()||"").toUpperCase()} · {t("estilos.titulo",{n:f.estilos.length})}{#if f.error}<span class="roto"> · {t(f.error === "cloud-only" ? "cloudOnly" : "err.ilegible")}</span>{/if}</span>
     <span
       class="muestra"
       class:off={!on}
@@ -23,6 +24,7 @@
       style:font-style={estilo.cursiva ? "italic" : "normal"}
       style:font-size="{tamano}px">{muestra}</span
     >
+    <div class="tags">{#each palabrasDe(f).slice(0,8) as tag (tag)}<button title={tag} onclick={ev=>{ev.stopPropagation();onetiqueta(tag);}} ondblclick={ev=>ev.stopPropagation()}>{tag}</button>{/each}</div>
   </div>
   <button
     type="button"
@@ -48,6 +50,7 @@
 </div>
 
 <style>
+  .tags {display:flex;gap:4px;overflow:hidden;align-items:center;min-height:20px;} .tags button {flex:none;padding:2px 7px;border:0;border-radius:12px;background:var(--chip);color:var(--fuente-inactiva);font:500 11px var(--sans);}
   .fila {
     display: grid;
     grid-template-columns: 24px minmax(0, 1fr) 34px 34px;

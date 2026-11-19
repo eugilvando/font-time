@@ -24,11 +24,16 @@ $effect.root(() => {
     return () => { activo = false; };
   });
 });
-export function palabrasDe(f) {
+export function etiquetasDe(f) {
   const personal = ajustes.etiquetas.find(x => x.nombre === f.nombre)?.valor ?? [];
   const sistema = ajustes.tagsSistema ? [t("cat." + f.categoria), ...f.estilos.map(e => e.nombre)] : [];
   const remotas = publicas.porFamilia[f.nombre];
   const comunidad = ajustes.tagsPublicos && Array.isArray(remotas) ? remotas : [];
+  return { personal, sistema: [...new Set(sistema)], comunidad: [...new Set(comunidad)] };
+}
+
+export function palabrasDe(f) {
+  const { personal, sistema, comunidad } = etiquetasDe(f);
   return [...new Set([...personal, ...sistema, ...comunidad])];
 }
 
@@ -40,9 +45,9 @@ export function filasDeFamilias(familias, abiertos) {
     if (ajustes.agrupar || !f.estilos.length) {
       return [grupo ? { ...f, tituloVista: grupo + " · " + f.nombre } : f];
     }
-    return f.estilos.map((estilo, i) => ({
-      ...f, estiloVista: estilo,
-      claveVista: JSON.stringify([f.nombre, i]),
+    return f.estilos.map((estilo) => ({
+      ...f, activa: !!estilo.activa, estiloVista: estilo,
+      claveVista: JSON.stringify([f.nombre, estilo.nombre, estilo.peso, estilo.cursiva]),
       tituloVista: (grupo ? grupo + " · " : "") + f.nombre + " · " + estilo.nombre,
     }));
   });

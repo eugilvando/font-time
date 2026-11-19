@@ -1,6 +1,5 @@
 //! Lee de un .ttf/.otf/.ttc solo las tablas que hacen falta (name, OS/2 y,
-//! para el mapa de caracteres, cmap). Nunca carga el archivo entero: lee la
-//! cabecera, busca las tablas en el directorio y salta a cada una.
+//! para el mapa de caracteres, cmap). La indexación también calcula una huella del contenido y métricas por cara.
 
 use serde::{Deserialize, Serialize};
 use std::{
@@ -14,6 +13,33 @@ use super::categoria::{self, Datos};
 /// Más que esto en una tabla name/OS/2/cmap es un archivo roto o malicioso.
 const TOPE_TABLA: u32 = 32 * 1024 * 1024;
 const TOPE_CARAS: u32 = 64;
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+pub struct Propiedades {
+    pub variable: bool,
+    pub color: bool,
+    pub contraste: Option<u16>,
+    pub peso: Option<u16>,
+    pub proporcion: Option<u16>,
+    pub altura: Option<u16>,
+    pub huella: String,
+}
+
+fn propiedades(face: Option<ttf_parser::Face>, panose: &[u8;10], huella: &str) -> Propiedades {
+    let contraste = if panose[0]==2 && (2..=9).contains(&panose[4]) { Some((u16::from(panose[4])-2)*100/7) } else {None};
+    let mut p=Propiedades {contraste,huella:huella.into(),..Default::default()};
+    if let Some(f)=face {
+        p.peso=f.tables().os2.map(|_|f.weight().to_number());
+        let em=u32::from(f.units_per_em());
+        let percent=|v:u16| (u32::from(v)*100/em) as u16;
+        p.proporcion=f.glyph_index('n').and_then(|id|f.glyph_hor_advance(id)).map(percent);
+        p.altura=f.x_height().or_else(|| f.glyph_index('x').and_then(|id|f.glyph_bounding_box(id)).map(|r|r.y_max))
+            .filter(|h|*h>0).map(|h|percent(h as u16));
+        p.variable=f.is_variable();
+        p.color=[b"COLR",b"CBDT",b"sbix",b"SVG "].iter().any(|tag|f.raw_face().table(ttf_parser::Tag::from_bytes(tag)).is_some());
+    }
+    p
+}
 
 /// Una cara (estilo) dentro de un archivo.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -30,6 +56,8 @@ pub struct Cara {
     pub peso: u16,
     pub cursiva: bool,
     pub categoria: String,
+    #[serde(default)]
+    pub propiedades: Propiedades,
 }
 
 fn be16(b: &[u8], i: usize) -> Option<u16> {
@@ -127,8 +155,11 @@ pub fn ejes(ruta: &Path, familia: &str) -> Result<Vec<serde_json::Value>, String
 /// Todas las caras de un archivo, con su categoría.
 pub fn caras(ruta: &Path) -> Result<Vec<Cara>, String> {
     let mut f = File::open(ruta).map_err(|e| e.to_string())?;
+    let bytes=std::fs::read(ruta).map_err(crate::err)?;
+    use sha2::Digest;
+    let huella=format!("{:x}",sha2::Sha256::digest(&bytes));
     let mut fuera = Vec::new();
-    for inicio in inicios(&mut f)? {
+    for (index,inicio) in inicios(&mut f)?.into_iter().enumerate() {
         let t = tablas(&mut f, inicio, &[b"name", b"OS/2"])?;
         let name = t[0].as_deref().and_then(ttf_parser::name::Table::parse).ok_or("sin tabla name")?;
         let os2 = t[1].as_deref();
@@ -155,7 +186,8 @@ pub fn caras(ruta: &Path) -> Result<Vec<Cara>, String> {
                 d.codepages = be32(o, 78);
             }
         }
-        fuera.push(Cara { familia, familia_win, estilo, completo, postscript: nombre(&name,6).unwrap_or_default(), peso, cursiva, categoria: categoria::clasificar(&d).into() });
+        let props=propiedades(ttf_parser::Face::parse(&bytes,index as u32).ok(),&d.panose,&huella);
+        fuera.push(Cara { propiedades:props, familia, familia_win, estilo, completo, postscript: nombre(&name,6).unwrap_or_default(), peso, cursiva, categoria: categoria::clasificar(&d).into() });
     }
     if fuera.is_empty() {
         return Err("el archivo no trae ninguna fuente".into());

@@ -1,5 +1,7 @@
 # Font Time — planejamento para substituir o FontBase no Windows
 
+O [plano revisado da versão 0.5.0](plano-font-time-0.5.0.md) reúne as decisões atuais sobre os filtros na barra superior, as cinco abas da ficha e o menu de contexto.
+
 Referência de 18 de novembro de 2026. Este documento reúne as decisões sobre ativação, a comparação com o código do Font Time 0.2.3 e os ajustes visíveis na captura do usuário. Os valores da captura representam o perfil pessoal de referência. Preferências já salvas no Font Time devem ser respeitadas.
 
 ## Objetivo principal

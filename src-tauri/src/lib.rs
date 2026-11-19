@@ -4,6 +4,10 @@ mod bandeja;
 mod inicio;
 pub mod fuentes;
 mod google;
+mod glifos;
+mod excluir;
+#[cfg(test)]
+mod pruebas_biblioteca;
 mod intercambio;
 mod adobe;
 #[cfg(windows)]
@@ -76,14 +80,23 @@ impl Estado {
                     grupo.extend(caras.into_iter().map(|c| c.familia.to_lowercase()));
                 }
             }
-            let visibles = if catalogadas.is_empty() { HashSet::new() } else { win::familias_visibles() };
+            let visibles = if catalogadas.is_empty() || !self.ent.tocar_windows { HashSet::new() } else { win::familias_visibles() };
             for f in &mut cache.familias {
                 let nombre = f.nombre.to_lowercase();
                 if catalogadas.contains(&nombre) && (externas.contains(&nombre)
                     || (!propias.contains(&nombre) && f.estilos.iter().any(|e| visibles.contains(&e.familia_win.to_lowercase())))) {
                     f.activa = true;
                     f.externa = true;
+                    if !externas.contains(&nombre) {
+                        for s in &mut f.estilos { if visibles.contains(&s.familia_win.to_lowercase()) { s.editable = false; } }
+                    }
                 }
+            }
+        }
+        #[cfg(windows)]
+        for f in &mut cache.familias {
+            for s in &mut f.estilos {
+                if s.activa && Path::new(&s.archivo).parent() != Some(self.ent.activas().as_path()) { s.editable = false; }
             }
         }
         leidas
@@ -125,8 +138,39 @@ async fn fuentes_actualizar(app: AppHandle) -> Result<Value, String> {
     .await
 }
 
+#[derive(serde::Deserialize)]
+pub struct SeleccionEstilo { familia: String, nombre: String, peso: u16, cursiva: bool }
+
+fn alternar_estilos(ent: &Entorno, entradas: &[fuentes::Entrada], cache: &Cache, estilos: &[SeleccionEstilo], activar: bool, res: &mut cambios::Resultado) {
+    let mut tocadas = HashSet::new();
+    for id in estilos {
+        let Some(estilo) = cache.familias.iter().find(|f| f.nombre == id.familia)
+            .and_then(|f| f.estilos.iter().find(|s| s.nombre == id.nombre && s.peso == id.peso && s.cursiva == id.cursiva)) else { continue };
+        if estilo.activa == activar { continue; }
+        if !estilo.editable { res.bloqueadas += 1; continue; }
+        let ruta = Path::new(&estilo.archivo);
+        if !tocadas.insert(ruta) { continue; }
+        let Some(e) = entradas.iter().find(|e| e.ruta == ruta && e.activa == estilo.activa) else { continue };
+        #[cfg(windows)]
+        let cambio = if activar && e.origen == Origen::Carpeta {
+            fuentes::activacion::activar(ent, ruta, &cache.caras(ruta).unwrap_or_default())
+        } else if !activar && e.origen == Origen::Biblioteca {
+            e.valor.as_ref().ok_or_else(|| "Missing registration".to_string()).and_then(|(v,_)| fuentes::activacion::desactivar(ent,v,ruta))
+        } else { Err("External font".into()) };
+        #[cfg(unix)]
+        let cambio = if activar { fuentes::activacion::activar(ent, &e.ruta) } else { fuentes::activacion::desactivar(ent, &e.ruta) }.map_err(err);
+        match cambio { Ok(()) => res.cambiadas += 1, Err(e) => res.errores.push(format!("{} · {}: {e}", id.familia, id.nombre)) }
+    }
+    if !tocadas.is_empty() {
+        #[cfg(windows)]
+        if ent.tocar_windows { win::avisar_cambio(); }
+        #[cfg(unix)]
+        if let Err(e) = fuentes::activacion::notificar(ent) { res.errores.push(e); }
+    }
+}
+
 #[tauri::command]
-async fn alternar(app: AppHandle, familias: Vec<String>, activar: bool, desbloqueadas: bool) -> Result<Salida, String> {
+async fn alternar(app: AppHandle, familias: Vec<String>, estilos: Option<Vec<SeleccionEstilo>>, activar: bool, desbloqueadas: bool) -> Result<Salida, String> {
     fondo(move || {
         let estado = app.state::<Estado>();
         let _op = estado.operaciones.lock().unwrap();
@@ -134,8 +178,15 @@ async fn alternar(app: AppHandle, familias: Vec<String>, activar: bool, desbloqu
         let resultado = {
             let mut cache = estado.cache.lock().unwrap();
             estado.actualizar_cache(&entradas, &mut cache);
-            let res = cambios::alternar(&estado.ent, &entradas, &cache, &familias, activar, desbloqueadas);
-            if res.errores.is_empty() { adobe::manual(&estado.ent.datos,&familias,activar)?; }
+            let mut res = cambios::alternar(&estado.ent, &entradas, &cache, &familias, activar, desbloqueadas);
+            let estilos = estilos.unwrap_or_default();
+            alternar_estilos(&estado.ent, &entradas, &cache, &estilos, activar, &mut res);
+            if res.errores.is_empty() {
+                adobe::manual(&estado.ent.datos, &familias, activar)?;
+                if activar && !estilos.is_empty() {
+                    adobe::manual(&estado.ent.datos, &estilos.into_iter().map(|s| s.familia).collect::<Vec<_>>(), true)?;
+                }
+            }
             res
         };
         let (familias, _, _) = estado.refrescar();
@@ -150,31 +201,58 @@ async fn agregar_archivos(app: AppHandle, rutas: Vec<PathBuf>) -> Result<Salida,
     fondo(move || {
         let estado = app.state::<Estado>();
         let _op = estado.operaciones.lock().unwrap();
-        let resultado = catalogar(&estado.ent, &rutas);
+        let destino = destino_importacion(&app, &estado)?;
+        let resultado = catalogar(&destino, &rutas);
         let (familias, _, _) = estado.refrescar();
         Ok(Salida { familias, resultado })
     }).await
 }
 
-fn catalogar(ent: &Entorno, rutas: &[PathBuf]) -> cambios::Resultado {
+fn destino_importacion(app: &AppHandle, estado: &Estado) -> Result<PathBuf, String> {
+    let ajustes = leer_ajustes(app);
+    if let Some(ruta) = ajustes["carpetaPrincipal"].as_str().filter(|v| !v.is_empty()) {
+        let principal = PathBuf::from(ruta);
+        if !estado.carpetas.lock().unwrap().contains(&principal) || !principal.is_dir() {
+            return Err(format!("{}: {}", ruta, std::io::Error::from(std::io::ErrorKind::NotFound)));
+        }
+        return Ok(principal);
+    }
+    let dir = estado.ent.biblioteca();
+    fs::create_dir_all(&dir).map_err(err)?;
+    Ok(dir)
+}
+
+fn copiar_importacion(ruta: &Path, dir: &Path) -> Result<(), String> {
+    let raiz = dir.canonicalize().map_err(err)?;
+    if ruta.canonicalize().map_err(err)?.starts_with(&raiz) { return Ok(()); }
+    let nombre = ruta.file_name().ok_or("Missing filename")?;
+    let base = ruta.file_stem().unwrap_or(nombre).to_string_lossy();
+    let ext = ruta.extension().map(|x| format!(".{}",x.to_string_lossy())).unwrap_or_default();
+    let mut temporal = tempfile::NamedTempFile::new_in(&raiz).map_err(err)?;
+    std::io::copy(&mut fs::File::open(ruta).map_err(err)?, temporal.as_file_mut()).map_err(err)?;
+    for n in 1u64.. {
+        let destino = if n == 1 { raiz.join(nombre) } else { raiz.join(format!("{base} ({n}){ext}")) };
+        match temporal.persist_noclobber(&destino) {
+            Ok(_) => return Ok(()),
+            Err(e) if e.error.kind() == std::io::ErrorKind::AlreadyExists => {
+                temporal = e.file;
+                if destino.is_file() && fs::metadata(&destino).map_err(err)?.len() == temporal.as_file().metadata().map_err(err)?.len()
+                    && fs::read(&destino).map_err(err)? == fs::read(temporal.path()).map_err(err)? { return Ok(()); }
+            }
+            Err(e) => return Err(err(e.error)),
+        }
+    }
+    unreachable!()
+}
+
+fn catalogar(dir: &Path, rutas: &[PathBuf]) -> cambios::Resultado {
     let mut resultado = cambios::Resultado::default();
     for ruta in rutas {
         let agregar = || -> Result<String, String> {
             if !fuentes::es_fuente(ruta) { return Err("Unsupported font format".into()); }
             let caras = fuentes::leer::caras(ruta)?;
             let familia = caras.first().ok_or("No font faces")?.familia.clone();
-            let nombre = ruta.file_name().ok_or("Missing filename")?.to_string_lossy();
-            let dir = ent.biblioteca();
-            fs::create_dir_all(&dir).map_err(err)?;
-            let base = dir.join(nombre.as_ref());
-            if base.is_file() && fs::read(&base).map_err(err)? == fs::read(ruta).map_err(err)? {
-                return Ok(familia);
-            }
-            let destino = cambios::libre(&dir, &nombre);
-            if let Err(e) = fs::copy(ruta, &destino) {
-                let _ = fs::remove_file(destino);
-                return Err(err(e));
-            }
+            copiar_importacion(ruta, dir)?;
             Ok(familia)
         };
         match agregar() {
@@ -326,11 +404,13 @@ async fn google_catalogo(app: AppHandle, forzar: bool) -> Result<Value, String> 
 #[tauri::command]
 async fn google_instalar(app: AppHandle, familia: String) -> Result<Salida, String> {
     let datos = app.state::<Estado>().ent.datos.clone();
-    let destino = datos.join("descargas").join(familia.replace(|c: char| !c.is_alphanumeric(), "_"));
+    let principal = destino_importacion(&app, &app.state::<Estado>())?;
+    fs::create_dir_all(&datos).map_err(err)?;
+    let temporal = tempfile::tempdir_in(&datos).map_err(err)?;
     let a = app.clone();
     let f = familia.clone();
     let mut ultimo = -1.0;
-    let archivos = google::bajar(&familia, &destino, move |p| {
+    let archivos = google::bajar(&familia, temporal.path(), move |p| {
         if p - ultimo >= 2.0 {
             ultimo = p;
             let _ = a.emit("descarga", json!({ "familia": f, "pct": p }));
@@ -348,8 +428,9 @@ async fn google_instalar(app: AppHandle, familia: String) -> Result<Salida, Stri
     let salida = fondo(move || {
         let estado = app2.state::<Estado>();
         let _op = estado.operaciones.lock().unwrap();
-        let r = catalogar(&estado.ent, &archivos);
-        let _ = fs::remove_dir_all(&destino);
+        if destino_importacion(&app2, &estado)? != principal { return Err("Import destination changed".into()); }
+        let r = catalogar(&principal, &archivos);
+        drop(temporal);
         let (familias, _, _) = estado.refrescar();
         Ok(Salida { familias, resultado: r })
     })
@@ -519,7 +600,7 @@ pub fn run() {
             agregar_archivos,
             #[cfg(windows)] restaurar_sistema,
             #[cfg(windows)] respaldadas,
-            caracteres,
+            excluir::papelera, caracteres, glifos::licencia_fuente, glifos::mapa_glifos, glifos::trazos_glifos,
             carpetas,
             anadir_carpeta,
             quitar_carpeta,

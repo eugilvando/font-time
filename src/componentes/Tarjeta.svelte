@@ -11,7 +11,7 @@
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-<div class="tarjeta" class:sel onclick={onsel} ondblclick={onabrir} onpointerdown={onarrastre} data-familia={f.nombre}>
+<div class="tarjeta" class:sel onclick={onsel} ondblclick={onabrir} onpointerdown={onarrastre} data-familia={f.nombre} data-fila={f.claveVista || f.nombre}>
   <div
     class="aa"
     class:off={!on}
@@ -22,7 +22,7 @@
     <span use:encajar={{ texto: aa, familia: estilo.familia, peso: estilo.peso, cursiva: estilo.cursiva, base: 64, margen: 12 }}>{aa}</span>
   </div>
   <div class="pie">
-    <Interruptor activa={f.activa} {bloqueada} titulo={bloqueada ? motivo : f.activa ? t("deactivate") : t("activate")} onclick={onalternar} tam={16} />
+    <Interruptor parcial={!f.estiloVista && f.activa && f.estilos.some(s=>s.activa) && f.estilos.some(s=>!s.activa)} activa={f.activa} {bloqueada} titulo={bloqueada ? motivo : f.activa ? t("deactivate") : t("activate")} onclick={onalternar} tam={16} />
     <span class="nombre">{f.tituloVista ?? f.nombre}</span>
     <button
       type="button"

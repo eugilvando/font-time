@@ -67,7 +67,7 @@ pub fn entradas_con_directorios(ent: &Entorno, vigiladas: &[PathBuf], dirs: &mut
 pub mod activacion {
     use super::*;
 
-    pub(super) fn activar(ent: &Entorno, path: &Path) -> io::Result<()> {
+    pub(crate) fn activar(ent: &Entorno, path: &Path) -> io::Result<()> {
         fs::create_dir_all(&ent.fuentes_usuario)?;
         let owned = ent.activas();
         fs::create_dir_all(&owned)?;
@@ -81,13 +81,13 @@ pub mod activacion {
         result
     }
 
-    pub(super) fn desactivar(ent: &Entorno, path: &Path) -> io::Result<()> {
+    pub(crate) fn desactivar(ent: &Entorno, path: &Path) -> io::Result<()> {
         if !propia(ent, path) { return Err(io::Error::new(io::ErrorKind::PermissionDenied, "External font")); }
         fs::remove_file(path)?;
         fs::remove_file(ent.activas().join(path.file_name().unwrap()))
     }
 
-    pub(super) fn notificar(ent: &Entorno) -> Result<(), String> {
+    pub(crate) fn notificar(ent: &Entorno) -> Result<(), String> {
         #[cfg(target_os = "linux")]
         {
             let status = std::process::Command::new("fc-cache").arg("-f").arg(&ent.fuentes_usuario)

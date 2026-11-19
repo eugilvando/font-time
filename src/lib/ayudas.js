@@ -39,7 +39,8 @@ function colocar(el) {
     y = r.top - c.height - 6;
     arriba = true;
   }
-  caja.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+  const zoom=Number(getComputedStyle(document.body).zoom)||1;
+  caja.style.transform = `translate(${Math.round(x/zoom)}px, ${Math.round(y/zoom)}px)`;
   caja.classList.toggle("arriba", arriba);
 }
 

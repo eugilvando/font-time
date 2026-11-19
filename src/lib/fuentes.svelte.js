@@ -114,10 +114,10 @@ function resumen(r, accion) {
 }
 
 /** Activa o desactiva familias. Devuelve el resultado de Rust. */
-export async function alternar(nombres, activar, desbloqueadas) {
+export async function alternar(nombres, activar, desbloqueadas, estilos = []) {
   fuentes.ocupado = true;
   try {
-    const r = await llamar("alternar", { familias: nombres, activar, desbloqueadas });
+    const r = await llamar("alternar", { familias: nombres, estilos, activar, desbloqueadas });
     poner(r.familias);
     const x = resumen(r);
     if (x.reiniciar) avisar("warn", t("aviso.reiniciar"), t("aviso.reiniciarTexto"));
@@ -164,18 +164,37 @@ export const mostrarEnExplorador = (ruta) => llamar("mostrar_en_explorador", { r
 export { llamar };
 
 // Fuera de Tauri (vite en el navegador): unos datos de muestra para ver la interfaz.
-function demo(cmd) {
+let inventarioDemo;
+function demo(cmd, args = {}) {
   const fam = (nombre, categoria, origen, activa) => ({
     nombre, categoria, origen, activa, imprescindible: ["Arial", "Segoe UI", "Consolas"].includes(nombre),
-    estilos: [{ nombre: "Regular", peso: 400, cursiva: false, archivo: nombre, familia_win: nombre, completo: nombre }],
+    estilos: [{ activa, editable: origen === "bib", nombre: "Regular", peso: 400, cursiva: false, archivo: nombre, familia_win: nombre, completo: nombre }],
     archivo: nombre, archivos: [nombre], error: null,
   });
-  const lista = [
+  const lista = inventarioDemo ??= [
     fam("Segoe UI", "sans", "sis", true), fam("Arial", "sans", "sis", true), fam("Georgia", "serif", "sis", true),
     fam("Consolas", "mono", "sis", true), fam("Comic Sans MS", "script", "sis", true), fam("Impact", "display", "sis", true),
     fam("Courier New", "mono", "sis", true), fam("Times New Roman", "serif", "sis", true), fam("Gochi Hand", "script", "usu", true),
-    fam("Archivo", "sans", "bib", false),
+    {...fam("Archivo", "sans", "bib", false), estilos:["Regular","Bold"].map((nombre,i)=>({nombre,peso:i?700:400,cursiva:false,activa:false,editable:true,archivo:"Archivo-"+nombre,familia_win:"Archivo",completo:"Archivo "+nombre}))},
   ];
+  if (cmd === "alternar") {
+    let cambiadas=0;
+    for (const f of lista) {
+      for (const s of f.estilos) {
+        const elegido=args.familias.includes(f.nombre) || args.estilos?.some(x=>x.familia===f.nombre && x.nombre===s.nombre);
+        if(elegido && s.editable && s.activa!==args.activar) {s.activa=args.activar;cambiadas++;}
+      }
+      f.activa=f.estilos.some(s=>s.activa);
+    }
+    return Promise.resolve({familias:structuredClone(lista),resultado:{cambiadas,errores:[],bloqueadas:0}});
+  }
+  if(cmd==="licencia_fuente") return Promise.resolve({terms:"",url:"",copyright:""});
+  if(cmd==="papelera") return Promise.resolve({rutas:[],errores:[]});
+  if(cmd==="mapa_glifos") {
+    const cps=[...Array.from({length:95},(_,i)=>i+32),0x00c1,0x20ac];
+    return Promise.resolve({nombres:cps.map(c=>String.fromCodePoint(c)),codigos:cps.map((c,i)=>[c,i])});
+  }
+  if(cmd==="trazos_glifos") return Promise.resolve({});
   if (cmd === "fuentes_guardadas") return Promise.resolve(lista);
   if (cmd === "fuentes_actualizar") return Promise.resolve({ familias: lista, leidas: 0 });
   if (cmd === "carpetas") return Promise.resolve([]);
