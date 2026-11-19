@@ -24,7 +24,7 @@ pub struct Cache {
     pub familias: Vec<Familia>,
 }
 
-const VERSION: u32 = 3;
+const VERSION: u32 = 4;
 pub const EN_NUBE: &str = "cloud-only";
 #[cfg(unix)]
 fn en_nube(_: &fs::Metadata) -> bool { false }

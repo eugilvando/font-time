@@ -25,6 +25,7 @@ export async function buscarApp(aMano = false) {
       nueva.version = pendiente.version;
       nueva.estado = "available";
       nueva.cerrado = false;
+      if (!aMano && ajustes.autoInstalar && !nueva.portable) await instalarApp();
     } else if (aMano) nueva.estado = "nada";
   } catch (e) {
     // Sin internet, o la release aún no trae latest.json: al abrir no se molesta a nadie.
@@ -60,7 +61,7 @@ export async function instalarApp() {
 }
 
 export function iniciarActualizador() {
-  if (actualizadorDisponible && enTauri && ajustes.buscarActualizaciones) {
+  if (actualizadorDisponible && enTauri && (ajustes.buscarActualizaciones || ajustes.autoInstalar)) {
     // Un poco después de abrir, para no competir con la lista de fuentes.
     setTimeout(() => buscarApp(false), 2500);
   }

@@ -23,7 +23,7 @@
   </div>
   <div class="pie">
     <Interruptor activa={f.activa} {bloqueada} titulo={bloqueada ? motivo : f.activa ? t("deactivate") : t("activate")} onclick={onalternar} tam={16} />
-    <span class="nombre">{f.nombre}</span>
+    <span class="nombre">{f.tituloVista ?? f.nombre}</span>
     <button
       type="button"
       class="corazon"

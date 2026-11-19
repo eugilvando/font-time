@@ -15,7 +15,7 @@ const LISTA: &str = "https://fonts.google.com/download/list?family=";
 /// El catálogo guardado vale una semana; si no hay red, vale el que haya.
 const VIGENCIA: Duration = Duration::from_secs(7 * 24 * 3600);
 
-fn cliente() -> Result<reqwest::Client, String> {
+pub(crate) fn cliente() -> Result<reqwest::Client, String> {
     let _ = rustls::crypto::ring::default_provider().install_default();
     reqwest::Client::builder()
         .user_agent("font-time")

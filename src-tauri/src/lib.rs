@@ -4,6 +4,8 @@ mod bandeja;
 mod inicio;
 pub mod fuentes;
 mod google;
+mod intercambio;
+mod adobe;
 #[cfg(windows)]
 pub mod win;
 
@@ -132,7 +134,9 @@ async fn alternar(app: AppHandle, familias: Vec<String>, activar: bool, desbloqu
         let resultado = {
             let mut cache = estado.cache.lock().unwrap();
             estado.actualizar_cache(&entradas, &mut cache);
-            cambios::alternar(&estado.ent, &entradas, &cache, &familias, activar, desbloqueadas)
+            let res = cambios::alternar(&estado.ent, &entradas, &cache, &familias, activar, desbloqueadas);
+            if res.errores.is_empty() { adobe::manual(&estado.ent.datos,&familias,activar)?; }
+            res
         };
         let (familias, _, _) = estado.refrescar();
         Ok(Salida { familias, resultado })
@@ -529,6 +533,9 @@ pub fn run() {
             #[cfg(windows)] inicio::inicio_windows,
             #[cfg(windows)] inicio::poner_inicio_windows,
             #[cfg(windows)] inicio::marcar_mostrar_al_abrir,
+            adobe::adobe_script, adobe::adobe_actualizar, adobe::adobe_mantener,
+            intercambio::importar_colecciones, intercambio::exportar_colecciones,
+            intercambio::configurar_sync, intercambio::diario_sync, intercambio::etiquetas_publicas, intercambio::ejes_fuente,
             mostrar_en_explorador,
         ])
         .setup(|app| {
@@ -536,7 +543,7 @@ pub fn run() {
             let datos = app.path().app_data_dir()?;
             // Con Windows (--oculta) se queda en la bandeja; tras actualizarse, no.
             #[cfg(windows)]
-            let oculta = inicio::arrancar_oculta(&datos);
+            let oculta = inicio::arrancar_oculta(&datos) && leer_ajustes(&handle)["inicioOculto"].as_bool().unwrap_or(true);
             #[cfg(unix)]
             let oculta = false;
             #[cfg(windows)]
@@ -597,7 +604,7 @@ pub fn run() {
                 "version": app.package_info().version.to_string(),
                 "idiomaSistema": idioma,
                 "plataforma": std::env::consts::OS,
-                "actualizador": app.config().plugins.0.get("updater")
+                "actualizador": cfg!(windows) && app.config().plugins.0.get("updater")
                     .and_then(|cfg| cfg["pubkey"].as_str()).is_some_and(|key| !key.is_empty()),
             });
 

@@ -11,6 +11,7 @@
   import { nueva, buscarApp, actualizadorDisponible } from "../lib/actualizador.svelte.js";
   import { enTauri, esWindows, plataforma } from "../lib/ajustes.svelte.js";
 
+  import BibliotecaAjustes from "./BibliotecaAjustes.svelte";
   const abrirWeb = async (cual) => {
     if (!enTauri) return;
     const { invoke } = await import("@tauri-apps/api/core");
@@ -119,7 +120,7 @@
     avisar("ok", t("ok.atajosRestaurados"), "");
   }
 
-  const novedades = $derived([t("nov.contraste"), t("nov.idioma"), t("nov.icono")]);
+  const novedades = $derived([t("nov.library"), t("nov.collections"), t("nov.adobe")]);
 </script>
 
 <svelte:window onkeydowncapture={tecla} />
@@ -202,10 +203,7 @@
             <button type="button" class="boton" disabled={fuentes.ocupado} onclick={restaurar}>{t("aj.restaurar")}</button>
           </div>
         {/if}
-        <div class="prueba">
-          <span class="eti">{t("defSample")}</span>
-          <input bind:value={ajustes.textoPrueba} placeholder={t("defaultSample")} spellcheck="false" />
-        </div>
+        <BibliotecaAjustes />
       {:else if pestana === "atajos"}
         <span class="pista menos">{t("atajos.hint")}</span>
         <div class="atajos">
@@ -349,8 +347,6 @@
   .eti { font-size: 13.5px; font-weight: 600; }
   .pista { font-size: 12px; color: var(--ink2); }
   .pista.menos { font-size: 12.5px; }
-  .prueba { display: flex; flex-direction: column; gap: 8px; }
-  .prueba input { height: 32px; padding: 0 10px; border-radius: 8px; border: 0; box-shadow: 0 0 0 1px var(--line2); background: var(--field); font: 500 13px var(--sans); color: var(--ink); outline: 0; }
   .boton { flex: none; height: 28px; padding: 0 12px; border: 0; border-radius: 999px; background: var(--chip); color: var(--ink); font: 600 12px var(--sans); }
   .boton:hover:not(:disabled) { background: var(--ink); color: var(--win); }
   .boton.suelto { align-self: flex-start; }

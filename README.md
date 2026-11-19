@@ -9,12 +9,12 @@ O Font Time é um gerenciador de fontes para quem guarda muitas famílias tipogr
 
 ## Baixar o Font Time
 
-| Sistema | Download da versão 0.3.3 | Como usar |
+| Sistema | Download da versão 0.4.0 | Como usar |
 | --- | --- | --- |
-| Windows 10 e 11 · 64 bits | [Instalador (.exe)](https://github.com/eugilvando/font-time/releases/download/v0.3.3/font-time_0.3.3_x64-setup.exe) | Execute para instalar ou atualizar. |
-| Windows 10 e 11 · 64 bits | [Edição portátil (.zip)](https://github.com/eugilvando/font-time/releases/download/v0.3.3/font-time_0.3.3_x64-portable.zip) | Extraia o ZIP e abra `font-time.exe`. |
-| macOS · Apple Silicon e Intel | [Instalador universal (.dmg)](https://github.com/eugilvando/font-time/releases/download/v0.3.3/font-time_0.3.3_macos-universal.dmg) | Abra a imagem e arraste o Font Time para Aplicativos. |
-| Ubuntu 24.04 LTS · AMD64/x86-64 | [Pacote Debian (.deb)](https://github.com/eugilvando/font-time/releases/download/v0.3.3/font-time_0.3.3_ubuntu-24.04_amd64.deb) | Na pasta do download, execute `sudo apt install ./font-time_0.3.3_ubuntu-24.04_amd64.deb`. |
+| Windows 10 e 11 · 64 bits | [Instalador (.exe)](https://github.com/eugilvando/font-time/releases/download/v0.4.0/font-time_0.4.0_x64-setup.exe) | Execute para instalar ou atualizar. |
+| Windows 10 e 11 · 64 bits | [Edição portátil (.zip)](https://github.com/eugilvando/font-time/releases/download/v0.4.0/font-time_0.4.0_x64-portable.zip) | Extraia o ZIP e abra `font-time.exe`. |
+| macOS · Apple Silicon e Intel | [Instalador universal (.dmg)](https://github.com/eugilvando/font-time/releases/download/v0.4.0/font-time_0.4.0_macos-universal.dmg) | Abra a imagem e arraste o Font Time para Aplicativos. |
+| Ubuntu 24.04 LTS · AMD64/x86-64 | [Pacote Debian (.deb)](https://github.com/eugilvando/font-time/releases/download/v0.4.0/font-time_0.4.0_ubuntu-24.04_amd64.deb) | Na pasta do download, execute `sudo apt install ./font-time_0.4.0_ubuntu-24.04_amd64.deb`. |
 
 **macOS e Ubuntu são edições experimentais.** Os pacotes passaram pela conferência de formato e arquitetura. Os testes de instalação e uso nesses sistemas estão pendentes. A edição macOS ainda não tem notarização da Apple.
 
@@ -38,6 +38,14 @@ Os arquivos SHA-256 para conferir os downloads e as novidades de cada versão fi
 | Favoritas e coleções | Marcar famílias para reencontrá-las e reunir escolhas por projeto. |
 | Google Fonts | Explorar o catálogo e baixar famílias pelo aplicativo. |
 | Aparência e idioma | Escolher tema claro, escuro ou do sistema e usar a interface em português do Brasil, inglês ou espanhol. |
+
+## Novidades da versão 0.4.0
+
+- **Personalizar a biblioteca.** Escolha o tamanho das amostras, a velocidade de rolagem e as frases disponíveis na prévia. A primeira linha é o texto padrão. Abra uma família para atribuir um grupo e etiquetas, pesquisar por esses termos e experimentar os eixos disponíveis em uma fonte variável.
+- **Transferir coleções.** Em Configurações, exporte o JSON do Font Time e importe-o em outro computador. A importação mostra as famílias ausentes antes de mesclar as coleções. Escolha ZIP para arquivar também os arquivos de fonte disponíveis das famílias selecionadas nas coleções. Observe as licenças das fontes ao compartilhar esses arquivos.
+- **Sincronizar pelo OneDrive.** Selecione nas configurações a mesma pasta sincronizada nos dois computadores. Com os aplicativos abertos, o Font Time reconcilia mudanças de nome, vínculos de famílias e exclusões. As fontes ativas continuam sob controle de cada computador.
+- **Escolher etiquetas.** A busca encontra as etiquetas pessoais, as classificações dos metadados e, quando habilitadas, as [etiquetas públicas do Google Fonts](https://github.com/google/fonts/tree/main/tags).
+- **Ativação por documento Adobe (experimental).** Em Configurações, salve o complemento na pasta de scripts de inicialização indicada pelo Adobe Bridge. Reinicie o Bridge, habilite o script e mantenha o Bridge e o Font Time abertos. A integração lê os nomes de fontes informados pelo InDesign, Photoshop e Illustrator. O reconhecimento depende dos dados que o documento disponibiliza para cada estilo. Use **Manter ativa manualmente** na ficha de uma família para continuar a usá-la após fechar o documento. A validação nos aplicativos Adobe está pendente.
 
 ## Imagens do aplicativo
 
@@ -66,7 +74,7 @@ npm run dev
 
 Use `npm run build` para gerar `src-tauri/target/release/font-time.exe`. O comando `npm run instalador` gera o instalador para Windows.
 
-Os dados do Font Time ficam em `%APPDATA%\com.eugilvando.fonttime`. As atualizações automáticas dependem da configuração de uma chave pública própria em `src-tauri/tauri.conf.json`.
+Os dados do Font Time ficam em `%APPDATA%\com.eugilvando.fonttime`. O instalador Windows da versão 0.4.0 incorpora a chave pública do projeto para conferir a assinatura das próximas atualizações. Quem usa a versão 0.3.3 atualiza manualmente uma vez.
 
 ## Origem e licença
 

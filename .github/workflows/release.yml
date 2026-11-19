@@ -24,6 +24,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  desktop:
+    if: startsWith(github.ref, 'refs/tags/v')
+    uses: ./.github/workflows/desktop-packages.yml
+    permissions:
+      contents: write
+    with:
+      build_only: true
+
   windows:
     runs-on: windows-latest
     timeout-minutes: 60
@@ -145,3 +153,25 @@ jobs:
           $cuerpo | Set-Content notas.md -Encoding utf8
           $archivos = @(Get-ChildItem salida -File | ForEach-Object FullName)
           gh release create $env:TAG --draft --verify-tag --title "Font Time $env:TAG" --notes-file notas.md @archivos
+
+  attach-desktop:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, desktop]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: desktop-*
+          merge-multiple: true
+          path: deliver
+      - name: Attach verified macOS and Ubuntu packages to draft
+        working-directory: deliver
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          sha256sum *.deb *.dmg > SHA256SUMS-desktop.txt
+          gh release upload "$TAG" *.deb *.dmg SHA256SUMS-desktop.txt --repo "$GITHUB_REPOSITORY"

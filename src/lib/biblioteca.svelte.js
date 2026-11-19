@@ -12,6 +12,14 @@ export const biblioteca = $state({
 
 const store = enTauri ? new LazyStore("biblioteca.json", { autoSave: 150 }) : null;
 
+export const leerMarcaSync = () => store?.get("syncBaseline");
+export async function guardarMarcaSync(marca) {
+  if (!store) return;
+  await store.set("colecciones",$state.snapshot(biblioteca.colecciones));
+  await store.set("syncBaseline",marca);
+  await store.save();
+}
+
 export async function iniciarBiblioteca() {
   if (store) {
     biblioteca.recientes = (await store.get("recientes")) ?? [];
@@ -49,7 +57,7 @@ export function aFavoritas(nombres) {
 }
 
 export function nuevaColeccion(nombre) {
-  const id = "c" + Date.now().toString(36);
+  const id = crypto.randomUUID();
   biblioteca.colecciones.push({ id, nombre, fuentes: [] });
   return id;
 }

@@ -25,6 +25,8 @@ pub struct Cara {
     /// Estilo (name 17, o 2).
     pub estilo: String,
     pub completo: String,
+    #[serde(default)]
+    pub postscript: String,
     pub peso: u16,
     pub cursiva: bool,
     pub categoria: String,
@@ -106,6 +108,22 @@ fn sin_extension(ruta: &Path) -> String {
     ruta.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default()
 }
 
+/// Ejes declarados por la cara de la familia solicitada.
+pub fn ejes(ruta: &Path, familia: &str) -> Result<Vec<serde_json::Value>, String> {
+    let mut file = File::open(ruta).map_err(|e| e.to_string())?;
+    for inicio in inicios(&mut file)? {
+        let t = tablas(&mut file, inicio, &[b"name", b"fvar"])?;
+        let Some(names) = t[0].as_deref().and_then(ttf_parser::name::Table::parse) else {continue};
+        if nombre(&names, 16).or_else(||nombre(&names,1)).as_deref()!=Some(familia) {continue;}
+        let Some(table) = t[1].as_deref().and_then(ttf_parser::fvar::Table::parse) else {continue};
+        return Ok(table.axes.into_iter().filter(|axis| !axis.hidden).map(|axis| serde_json::json!({
+            "tag": axis.tag.to_string(), "label": nombre(&names,axis.name_id).unwrap_or_else(||axis.tag.to_string()),
+            "min": axis.min_value, "max": axis.max_value, "value": axis.def_value
+        })).collect());
+    }
+    Ok(Vec::new())
+}
+
 /// Todas las caras de un archivo, con su categoría.
 pub fn caras(ruta: &Path) -> Result<Vec<Cara>, String> {
     let mut f = File::open(ruta).map_err(|e| e.to_string())?;
@@ -137,7 +155,7 @@ pub fn caras(ruta: &Path) -> Result<Vec<Cara>, String> {
                 d.codepages = be32(o, 78);
             }
         }
-        fuera.push(Cara { familia, familia_win, estilo, completo, peso, cursiva, categoria: categoria::clasificar(&d).into() });
+        fuera.push(Cara { familia, familia_win, estilo, completo, postscript: nombre(&name,6).unwrap_or_default(), peso, cursiva, categoria: categoria::clasificar(&d).into() });
     }
     if fuera.is_empty() {
         return Err("el archivo no trae ninguna fuente".into());

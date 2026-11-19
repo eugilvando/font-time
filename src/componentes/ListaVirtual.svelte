@@ -6,6 +6,17 @@
   // alto: px de cada fila. minAncho: si se da, cuadrícula con columnas de al menos ese ancho.
   let { items, alto, clave, fila, minAncho = 0, gap = 0, padX = 0, padTop = 0, padBottom = 90, alVer = null } = $props();
 
+  import { ajustes } from "../lib/ajustes.svelte.js";
+  function velocidadRueda(node) {
+    function mover(e) {
+      if (e.ctrlKey || e.shiftKey || e.deltaX || !e.deltaY || ajustes.velocidad === 1) return;
+      const unidad = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? node.clientHeight : 1;
+      e.preventDefault();
+      node.scrollTop += e.deltaY * unidad * ajustes.velocidad;
+    }
+    node.addEventListener("wheel", mover, { passive: false });
+    return { destroy: () => node.removeEventListener("wheel", mover) };
+  }
   let ancho = $state(0);
   let altoVista = $state(0);
   let scroll = $state(0);
@@ -23,7 +34,7 @@
   });
 </script>
 
-<div class="caja" bind:clientWidth={ancho} bind:clientHeight={altoVista} onscroll={(e) => (scroll = e.currentTarget.scrollTop)}>
+<div class="caja" use:velocidadRueda bind:clientWidth={ancho} bind:clientHeight={altoVista} onscroll={(e) => (scroll = e.currentTarget.scrollTop)}>
   <div class="todo" style:height="{padTop + Math.max(0, filas * paso - gap) + padBottom}px">
     <div
       class="vista"

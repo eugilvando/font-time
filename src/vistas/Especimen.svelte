@@ -2,6 +2,10 @@
   // Espécimen: escala de tamaños, juegos de caracteres, el mapa de caracteres
   // real de la fuente (tabla cmap; clic para copiar), los estilos y la ruta.
   import { ChevronLeft, FolderOpen } from "@lucide/svelte";
+  import { ajustes } from "../lib/ajustes.svelte.js";
+  import { grupoDe, configurar, palabrasDe } from "../lib/organizacion.svelte.js";
+  import { adobe, mantener } from "../lib/adobe.svelte.js";
+  import Ejes from "./Ejes.svelte";
   import Corazon from "../componentes/Corazon.svelte";
   import { estiloDe, caracteres, mostrarEnExplorador } from "../lib/fuentes.svelte.js";
   import { avisar } from "../lib/avisos.svelte.js";
@@ -65,6 +69,13 @@
     {/if}
   </div>
 
+  {#if ajustes.adobe && adobe.owned.includes(f.nombre)}<button class="chip" onclick={() => mantener(f.nombre)}>{t("org.pin")}</button>{/if}
+  <div class="organizacion">
+    <label>{t("org.familyGroup")} <input value={grupoDe(f.nombre)} onchange={e => configurar("grupos", f.nombre, e.currentTarget.value.trim())} /></label>
+    <label>{t("org.personalTags")} <input value={(ajustes.etiquetas.find(x => x.nombre === f.nombre)?.valor ?? []).join(", ")} onchange={e => configurar("etiquetas", f.nombre, [...new Set(e.currentTarget.value.split(",").map(v => v.trim()).filter(Boolean))])} /></label>
+    <small>{palabrasDe(f).join(" · ")}</small>
+  </div>
+  <Ejes {f} {muestra} estilo={e} />
   <div class="escala">
     {#each [12, 18, 24, 36, 48, 72] as n (n)}
       <div class="paso">
@@ -115,6 +126,8 @@
 </div>
 
 <style>
+  .organizacion { display:grid; gap:8px; font-size:12px; }
+  .organizacion input { padding:4px 8px; color:inherit; background:var(--win); border:1px solid var(--line); border-radius:5px; }
   .esp { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 40px 70px 24px; display: flex; flex-direction: column; gap: 34px; animation: tf-up 0.25s ease-out; }
   .esp > :global(*) { flex-shrink: 0; }
   .volver, .chip {

@@ -340,6 +340,8 @@ pub struct Estilo {
     /// Nombre completo (name 4): el que entiende `local()` en CSS.
     #[serde(default)]
     pub completo: String,
+    #[serde(default)]
+    pub postscript: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -409,7 +411,7 @@ pub fn agrupar(entradas: &[Entrada], caras: &dyn Fn(&Path) -> Result<Vec<Cara>, 
                         f.categoria = c.categoria.clone();
                     }
                     if !f.estilos.iter().any(|s| s.nombre == c.estilo && s.peso == c.peso && s.cursiva == c.cursiva) {
-                        f.estilos.push(Estilo { nombre: c.estilo, peso: c.peso, cursiva: c.cursiva, archivo: archivo.clone(), familia_win: c.familia_win, completo: c.completo });
+                        f.estilos.push(Estilo { nombre: c.estilo, peso: c.peso, cursiva: c.cursiva, archivo: archivo.clone(), familia_win: c.familia_win, completo: c.completo, postscript:c.postscript });
                     }
                 }
             }

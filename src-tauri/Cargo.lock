@@ -1063,10 +1063,11 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
 name = "font-time"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "futures-util",
  "notify",
+ "percent-encoding",
  "rayon",
  "reqwest",
  "rustls",
@@ -1083,6 +1084,7 @@ dependencies = [
  "ttf-parser",
  "windows-sys 0.61.2",
  "winreg",
+ "zip",
 ]
 
 [[package]]

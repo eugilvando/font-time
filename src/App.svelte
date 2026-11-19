@@ -1,4 +1,6 @@
 <script>
+  import { iniciarAdobe } from "./lib/adobe.svelte.js";
+  import { iniciarSync } from "./lib/sync.svelte.js";
   import Marca from "./componentes/Marca.svelte";
   import { onMount } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
@@ -55,7 +57,9 @@
   let splash = $state(!sinMovimiento);
   if (!sinMovimiento) setTimeout(() => (splash = false), 800);
 
-  const muestraDefecto = $derived(ajustes.textoPrueba.trim() || t("defaultSample"));
+  import { muestrasActuales, filasDeFamilias, palabrasDe, grupoDe } from "./lib/organizacion.svelte.js";
+  const muestras = $derived(muestrasActuales());
+  const muestraDefecto = $derived(muestras[0] || t("defaultSample"));
   const muestra = $derived(muestraPropia || muestraDefecto);
   const tamano = $derived(ajustes.tamano);
 
@@ -89,7 +93,7 @@
     base.filter(
       (f) =>
         (!cat || f.categoria === cat) &&
-        (!ql || f.nombre.toLowerCase().includes(ql)) &&
+        (!ql || [f.nombre, grupoDe(f.nombre), ...palabrasDe(f)].some(p => p.toLowerCase().includes(ql))) &&
         (seccion === "activas" || seccion === "inactivas" || filtro === "todas" || (filtro === "activas") === f.activa),
     ),
   );
@@ -108,11 +112,13 @@
       : [],
   );
   // Lo que se pinta: en favoritas, las instaladas y las de Google por orden alfabético.
-  const listaVista = $derived(
+  const familiasVista = $derived(
     favGoogle.length
       ? [...lista, ...favGoogle.map((g) => ({ google: g, nombre: g.nombre }))].sort((a, b) => a.nombre.localeCompare(b.nombre))
       : lista,
   );
+  const gruposAbiertos = new SvelteSet();
+  const listaVista = $derived(filasDeFamilias(familiasVista, gruposAbiertos));
   // El catálogo solo hace falta si hay favoritas que no están instaladas.
   $effect(() => {
     if (seccion === "favoritas" && biblioteca.favoritas.some((n) => !instaladasNombres.has(n.toLowerCase()))) cargarCatalogo();
@@ -363,7 +369,10 @@
 
   // ---- arranque ----
   onMount(() => {
-    iniciarBiblioteca();
+    let dejarSync;
+    let montada = true;
+    iniciarBiblioteca().then(() => { if (montada) dejarSync = iniciarSync(); });
+    const dejarAdobe = iniciarAdobe();
     iniciarActualizador();
     iniciarFuentes();
     precargar(muestra);
@@ -402,6 +411,9 @@
       });
     });
     return () => {
+      montada = false;
+      dejarSync?.();
+      dejarAdobe();
       quitar?.();
       quitarBandeja?.();
     };
@@ -413,7 +425,7 @@
 {#snippet fila(f)}
   <Fila
     {f}
-    estilo={estiloDe(f)}
+    estilo={estiloDe(f, f.estiloVista)}
     {muestra}
     {tamano}
     sel={sel.has(f.nombre)}
@@ -431,7 +443,7 @@
 {#snippet tarjeta(f)}
   <Tarjeta
     {f}
-    estilo={estiloDe(f)}
+    estilo={estiloDe(f, f.estiloVista)}
     sel={sel.has(f.nombre)}
     fav={favs.has(f.nombre)}
     bloqueada={bloqueada(f)}
@@ -457,8 +469,16 @@
   />
 {/snippet}
 
+{#snippet grupoPersonal(it)}
+  <button class="grupo-personal" aria-expanded={gruposAbiertos.has(it.grupo)} onclick={() => gruposAbiertos.has(it.grupo) ? gruposAbiertos.delete(it.grupo) : gruposAbiertos.add(it.grupo)}>
+    <span>{gruposAbiertos.has(it.grupo) ? "▾" : "▸"} {it.grupo}</span>
+    <small>{t("org.groupMembers")} · {it.cantidad}</small>
+  </button>
+{/snippet}
+
 {#snippet filaFav(it)}
-  {#if it.google}
+  {#if it.grupo}{@render grupoPersonal(it)}
+  {:else if it.google}
     <FilaGoogle
       g={it.google}
       {muestra}
@@ -476,7 +496,8 @@
 {/snippet}
 
 {#snippet tarjetaFav(it)}
-  {#if it.google}
+  {#if it.grupo}{@render grupoPersonal(it)}
+  {:else if it.google}
     <TarjetaGoogle
       g={it.google}
       pct={descubrir.descargas[it.nombre]}
@@ -517,11 +538,12 @@
         </label>
         <label class="campo prueba">
           <span class="a">A</span>
-          <input bind:value={muestraPropia} placeholder={t("typeSomething")} spellcheck="false" />
+          <input list="muestras-guardadas" bind:value={muestraPropia} placeholder={t("typeSomething")} spellcheck="false" />
           {#if muestraPropia}
             <button type="button" class="reset" title={t("resetText")} aria-label={t("resetText")} onclick={() => (muestraPropia = "")}><X size={9} strokeWidth={3} /></button>
           {/if}
         </label>
+        <datalist id="muestras-guardadas">{#each muestras as frase}<option value={frase}></option>{/each}</datalist>
         <div class="tamano" title={t("tamano")}>
           <span class="a pq">A</span>
           <input class="rango" type="range" min="10" max="96" bind:value={ajustes.tamano} aria-label={t("tamano")} />
@@ -636,11 +658,11 @@
       {/if}
     {:else if ajustes.vista === "cuadricula"}
       {#key seccion + cat}
-        <ListaVirtual items={listaVista} alto={146} minAncho={176} gap={10} padX={24} padTop={4} clave={(f) => (f.google ? "g:" : "") + f.nombre} fila={tarjetaFav} alVer={alVerFav} />
+        <ListaVirtual items={listaVista} alto={146} minAncho={176} gap={10} padX={24} padTop={4} clave={(f) => f.claveVista ?? JSON.stringify([!!f.google, f.nombre])} fila={tarjetaFav} alVer={alVerFav} />
       {/key}
     {:else}
       {#key seccion + cat}
-        <ListaVirtual items={listaVista} alto={Math.ceil(32 + tamano * 1.58)} clave={(f) => (f.google ? "g:" : "") + f.nombre} fila={filaFav} alVer={alVerFav} padBottom={80} />
+        <ListaVirtual items={listaVista} alto={Math.ceil(32 + tamano * 1.58)} clave={(f) => f.claveVista ?? JSON.stringify([!!f.google, f.nombre])} fila={filaFav} alVer={alVerFav} padBottom={80} />
       {/key}
     {/if}
 
@@ -702,6 +724,8 @@
 </div>
 
 <style>
+  .grupo-personal { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:4px; margin:4px 12px; padding:8px; text-align:left; color:var(--ink); background:var(--field); border-radius:6px; }
+  .grupo-personal small { color:var(--ink2); }
   .ventana { position: relative; height: 100vh; overflow: hidden; display: grid; grid-template-columns: 216px minmax(0, 1fr); }
   main { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
   header { flex: none; height: 52px; display: flex; align-items: center; gap: 10px; padding-left: 24px; }
