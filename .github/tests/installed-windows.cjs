@@ -6,9 +6,10 @@ const assert = require("node:assert/strict");
 async function launch() {
   const app = spawn(process.env.FONT_TIME_EXE, [], {windowsHide:true, env:{...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS:"--remote-debugging-port=9222"}});
   const done = new Promise(resolve => app.once("exit",resolve));
+  let browser;
   for(let attempt=0; attempt<90; attempt++) {
     await delay(1000);
-    const browser=await chromium.connectOverCDP("http://127.0.0.1:9222",{timeout:3000}).catch(()=>null);
+    if (!browser?.isConnected()) browser=await chromium.connectOverCDP("http://127.0.0.1:9222",{timeout:3000}).catch(()=>null);
     if (!browser) continue;
     for (const c of browser.contexts()) for (const page of c.pages()) {
       if(await page.title().catch(()=>"") !== "Font Time" || !await page.locator("main").count()) continue;
@@ -18,7 +19,7 @@ async function launch() {
       await fixture.waitFor();
       return {page,fixture,done};
     }
-    await browser.close();
+    // Keep the connection while the installed WebView loads the main page.
   }
   throw Error("Installed window unavailable");
 }
